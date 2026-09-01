@@ -12,6 +12,7 @@
     python -m docauto envio-confirmar --lote D:/CONTABIL/LOTE_EXPRESS/2026-08
     python -m docauto diagnosticar --entrada C:/amostras --texto C:/amostras/_texto
     python -m docauto espelhar
+    python -m docauto doutor
 """
 from __future__ import annotations
 
@@ -25,6 +26,7 @@ from pathlib import Path
 from . import textio
 from .classify import classificar, pontuar_todos
 from .config import caminho_projeto, carregar_config, destinos
+from .doutor import ERRO, OK, resumo, verificar
 from .espelho import FilaEspelho
 from .normalize import extrair_campos, formatar_cnpj
 from .confidence import AUTOMATICO, PENDENTE, REVISAO
@@ -139,6 +141,35 @@ def cmd_relatorio(args) -> int:
         print("\nmotivos de pendência (atacar de cima para baixo):")
         for chave, qtd in motivos.most_common():
             print(f"  {chave:34} {qtd:5}")
+    return 0
+
+
+MARCAS = {"OK": "OK  ", "AVISO": "!   ", "ERRO": "ERRO"}
+
+
+def cmd_doutor(args) -> int:
+    """Diz o que falta para o fluxo rodar NESTE computador."""
+    cfg = carregar_config(args.config)
+    try:
+        proc = Processador(cfg)
+    except FileNotFoundError as erro:
+        print(f"[ERRO] {erro}")
+        proc = None
+
+    checagens = verificar(cfg, proc)
+    for c in checagens:
+        linha = f"[{MARCAS.get(c.nivel, c.nivel)}] {c.item:22} {c.detalhe}"
+        print(linha)
+        if c.acao:
+            print(f"         -> {c.acao}")
+
+    erros, avisos = resumo(checagens)
+    print()
+    if erros:
+        print(f"{erros} erro(s) e {avisos} aviso(s). "
+              "Corrija os erros antes de processar documentos.")
+        return 1
+    print(f"ambiente pronto ({avisos} aviso(s)).")
     return 0
 
 
@@ -342,6 +373,9 @@ def main(argv=None) -> int:
 
     sub.add_parser("init", help="cria config, cadastro e pastas").set_defaults(func=cmd_init)
     sub.add_parser("validar", help="confere o cadastro de empresas").set_defaults(func=cmd_validar)
+    sub.add_parser("doutor",
+                   help="verifica pastas, permissões, leitores e destinos").set_defaults(
+        func=cmd_doutor)
 
     s = sub.add_parser("estrutura", help="cria a árvore de pastas dos clientes")
     s.add_argument("--ano", type=int)

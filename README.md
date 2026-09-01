@@ -35,6 +35,7 @@ o roteiro completo, escrito para um escritório que começou agora.
 | [12 Runbook Onvio](docs/12-runbook-onvio-express.md) | Rotina diária de execução no Onvio Express |
 | [13 Calibrar templates](docs/13-calibrar-templates.md) | Ajustar os templates às suas guias, com `diagnosticar` |
 | [14 Servidor + Dropbox](docs/14-copias-servidor-dropbox.md) | Cópias em vários destinos e a ordem correta do fluxo |
+| [15 Acessos e instalação](docs/15-acessos-e-instalacao.md) | O que está automatizado e o que só você pode fazer |
 
 ---
 
@@ -49,7 +50,9 @@ pip install -r requirements.txt
 ## Uso
 
 ```bash
+scripts\instalar.bat                   # Windows: instala tudo de uma vez
 python -m docauto init                 # cria config.yaml, cadastro e pastas
+python -m docauto doutor               # o que falta para funcionar NESTE computador
 python -m docauto validar              # confere o cadastro (CNPJ, duplicados)
 python -m docauto estrutura --ano 2026 # cria a árvore de pastas dos clientes
 python -m docauto processar --dry-run  # simula: não copia nada
@@ -87,12 +90,12 @@ candidatos e as sugestões de empresa — é o painel de exceções da Fase 1.
 python -m unittest discover -s tests -t .
 ```
 
-86 testes cobrindo dígito verificador de CNPJ, prioridade da competência
+91 testes cobrindo dígito verificador de CNPJ, prioridade da competência
 (vencimento nunca vira competência), PIS × COFINS, supressão do DAS, retenção
 conjunta, sanitização de nome no Windows, não sobrescrita, detecção de duplicado e a fila
 de envio (idempotência, piloto, limite, conciliação, bloqueio) e o fechamento
 do ciclo pela planilha de conferência, arquivamento em múltiplos destinos e a
-fila de espelho.
+fila de espelho, e a verificação de ambiente.
 
 ## O que o escritório configura (sem programar)
 

@@ -576,3 +576,71 @@ class TestDiagnostico(unittest.TestCase):
         self.assertEqual(len(cands), len(templates))
         self.assertEqual(cands[0].tipo, "PIS")
         self.assertEqual(cands[0].relativo, 100)
+
+
+class TestDoutor(unittest.TestCase):
+    """O doutor precisa reprovar ambiente quebrado — é a única coisa que separa
+    'configurei' de 'funciona'."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.cfg = yaml.safe_load((RAIZ / "config" / "config.example.yaml").read_text())
+        self.cfg["_raiz"] = str(RAIZ)
+        self.cfg["_arquivo"] = "teste"
+        self.cfg["pastas"] = {"entrada": str(self.tmp / "ENTRADA"),
+                              "processados": str(self.tmp / "PROC"),
+                              "pendentes": str(self.tmp / "PEND"),
+                              "base_clientes": str(self.tmp / "CLIENTES")}
+        (self.tmp / "ENTRADA").mkdir()
+        self.cfg["destinos"] = [{"nome": "SERVIDOR", "raiz": str(self.tmp / "CLIENTES"),
+                                 "habilitado": True, "principal": True}]
+        self.cfg["envio"]["habilitado"] = False
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def checar(self):
+        from docauto.doutor import verificar
+        return verificar(self.cfg)
+
+    def item(self, checagens, prefixo):
+        return next(c for c in checagens if c.item.startswith(prefixo))
+
+    def test_entrada_inexistente_e_erro(self):
+        from docauto.doutor import ERRO, resumo
+        self.cfg["pastas"]["entrada"] = str(self.tmp / "NAO_EXISTE")
+        checagens = self.checar()
+        self.assertEqual(self.item(checagens, "entrada").nivel, ERRO)
+        self.assertGreaterEqual(resumo(checagens)[0], 1)
+
+    def test_destino_com_caminho_errado_nao_e_criado(self):
+        from docauto.doutor import AVISO
+        fantasma = self.tmp / "NAO_EXISTE" / "Dropbox" / "CLIENTES"
+        self.cfg["destinos"].append({"nome": "DROPBOX", "raiz": str(fantasma),
+                                     "habilitado": True, "principal": False})
+        checagens = self.checar()
+        self.assertEqual(self.item(checagens, "destino DROPBOX").nivel, AVISO)
+        self.assertFalse(fantasma.exists())      # não pode criar pasta que não sincroniza
+
+    def test_destino_principal_quebrado_e_erro(self):
+        from docauto.doutor import ERRO
+        self.cfg["destinos"][0]["raiz"] = str(self.tmp / "SEM_PAI" / "X" / "CLIENTES")
+        self.assertEqual(self.item(self.checar(), "destino SERVIDOR").nivel, ERRO)
+
+    def test_ambiente_sadio_so_tem_avisos(self):
+        from docauto.doutor import ERRO
+        erros = [c for c in self.checar() if c.nivel == ERRO]
+        # o único erro possível neste ambiente de teste é a ausência de leitor de PDF
+        self.assertTrue(all(c.item == "leitor de PDF" for c in erros), erros)
+
+    def test_caminho_longo_reprova(self):
+        from docauto.doutor import ERRO, verificar
+        from docauto.pipeline import Processador
+        self.cfg["cadastro"]["arquivo"] = "data/empresas.exemplo.csv"
+        self.cfg["registro"] = {"csv": str(self.tmp / "r.csv"),
+                                "jsonl": str(self.tmp / "r.jsonl")}
+        self.cfg["envio"]["fila"] = str(self.tmp / "envio.csv")
+        self.cfg["espelho"] = str(self.tmp / "espelho.csv")
+        self.cfg["estrutura"]["limite_caminho"] = 40
+        checagens = verificar(self.cfg, Processador(self.cfg))
+        self.assertEqual(self.item(checagens, "limite de caminho").nivel, ERRO)
