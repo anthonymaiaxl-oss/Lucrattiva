@@ -9,6 +9,7 @@
     python -m docauto enviar --dry-run
     python -m docauto enviar
     python -m docauto envio-status
+    python -m docauto envio-confirmar --lote D:/CONTABIL/LOTE_EXPRESS/2026-08
 """
 from __future__ import annotations
 
@@ -180,6 +181,35 @@ def cmd_enviar(args) -> int:
     return 0
 
 
+def cmd_envio_confirmar(args) -> int:
+    cfg = carregar_config(args.config)
+    fila = _fila(cfg)
+    try:
+        resultados = fila.confirmar_lote(args.lote, dry_run=args.dry_run,
+                                         mover=not args.manter)
+    except FileNotFoundError as erro:
+        print(f"ERRO: {erro}")
+        print("dica: a planilha é criada por 'docauto enviar' no modo lote_manual")
+        return 1
+    if not resultados:
+        print("nenhuma linha da planilha corresponde a documento da fila")
+        return 0
+
+    for item, resultado in resultados:
+        print(f"[{resultado:24}] {item.nome}  {item.empresa}")
+    sem_resposta = sum(1 for _, r in resultados if r == "SEM_RESPOSTA")
+    nao_reconhecidas = [r for _, r in resultados if r.startswith("RESPOSTA_NAO_RECONHECIDA")]
+    if sem_resposta:
+        print(f"\n{sem_resposta} linha(s) sem resposta em 'tarefa_vinculada' — "
+              "preencha SIM, MULTIPLA ou NAO e rode de novo")
+    if nao_reconhecidas:
+        print(f"{len(nao_reconhecidas)} resposta(s) não reconhecida(s): "
+              "use SIM, MULTIPLA ou NAO")
+    if args.dry_run:
+        print("\n(simulação — a fila não foi alterada)")
+    return 0
+
+
 def cmd_envio_status(args) -> int:
     cfg = carregar_config(args.config)
     fila = _fila(cfg)
@@ -191,11 +221,21 @@ def cmd_envio_status(args) -> int:
     print(f"fila de envio: {total} documento(s)")
     for estado, qtd in sorted(resumo.items(), key=lambda x: -x[1]):
         print(f"  {estado:12} {qtd:5}  {qtd/total:6.1%}")
+    metricas = fila.metricas_express()
+    respondidos = sum(v for k, v in metricas.items() if k != "SEM_RESPOSTA")
+    if respondidos:
+        print("\nresultado no Express (dos que voltaram conferidos):")
+        for chave in ("VINCULADA", "MULTIPLA", "NAO_ENCONTRADA"):
+            qtd = metricas.get(chave, 0)
+            print(f"  {chave:16} {qtd:5}  {qtd/respondidos:6.1%}")
+        print("  (MULTIPLA alto = o gargalo é escolher a tarefa, não subir o arquivo)")
+
     parados = [i for i in fila.itens if i.estado == PARADO]
     if parados:
-        print("\nPARADOS na pasta monitorada — o Express pode ter deixado de varrer:")
+        print("\nPARADOS — exigem ação dentro do Onvio:")
         for item in parados[:20]:
-            print(f"  {item.nome}  enviado em {item.enviado_em}")
+            motivo = item.observacao or "sem confirmação após o prazo"
+            print(f"  {item.nome}  ({motivo})")
     return 0
 
 
@@ -224,6 +264,14 @@ def main(argv=None) -> int:
     s = sub.add_parser("enviar", help="envia a fila ao Express (lote ou pasta monitorada)")
     s.add_argument("--dry-run", action="store_true", help="não copia nada, só mostra")
     s.set_defaults(func=cmd_enviar)
+
+    s = sub.add_parser("envio-confirmar",
+                       help="fecha o ciclo do lote a partir da planilha _CONFERIR.csv")
+    s.add_argument("--lote", required=True, help="pasta do lote (ex.: .../LOTE_EXPRESS/2026-08)")
+    s.add_argument("--dry-run", action="store_true")
+    s.add_argument("--manter", action="store_true",
+                   help="não mover os confirmados para _ENVIADOS")
+    s.set_defaults(func=cmd_envio_confirmar)
 
     sub.add_parser("envio-status",
                    help="o que já foi consumido pelo Express e o que travou").set_defaults(

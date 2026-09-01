@@ -68,9 +68,11 @@ D:\CONTABIL\LOTE_EXPRESS\2026-08\
     _CONFERIR.csv
 ```
 
-**4. Subir no Express** e preencher a coluna `tarefa_vinculada` da planilha:
-vinculou sozinho / precisou escolher / não achou tarefa. **Essa planilha é o
-dado mais valioso da semana** — é ela que diz se vale a pena automatizar o
+**4. Subir no Express** e preencher a coluna `tarefa_vinculada` da planilha com
+`SIM`, `MULTIPLA` ou `NAO`; depois rodar
+`python -m docauto envio-confirmar --lote <pasta da competência>` para fechar o
+ciclo. O procedimento de tela está em [docs/12](12-runbook-onvio-express.md).
+**Essa planilha é o dado mais valioso da semana** — é ela que diz se vale a pena automatizar o
 upload ou se o gargalo real está na escolha da tarefa dentro do Domínio.
 
 ✅ *Fim de segunda: envio em produção, uma empresa, com medição.*
@@ -80,6 +82,12 @@ upload ou se o gargalo real está na escolha da tarefa dentro do Domínio.
 ## TERÇA — descobrir o mecanismo real (protocolo de 30 minutos)
 
 Não espere a resposta formal do chamado. Faça o teste você mesmo, nesta ordem:
+
+> **Atualização:** o artigo oficial [Como utilizar Express? (9146)](https://suporte.dominioatendimento.com/central/faces/solucao.html?codigo=9146)
+> menciona **baixar e usar uma pasta local no computador** para envio automático
+> ao Processos. Ou seja, o Cenário B tem respaldo oficial — o que falta é
+> confirmar se está disponível na sua conta e como se instala. Procure por essa
+> opção no passo 1.
 
 **Passo 1 — procurar na própria tela (10 min).** Dentro do Domínio Processos,
 com o Express aberto, procure por: *configurações*, *preferências*, *importação*,

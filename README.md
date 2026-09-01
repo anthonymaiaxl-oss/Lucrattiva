@@ -12,6 +12,8 @@ documento não arquivado. **Na dúvida, para e pergunta.**
 
 ## Por onde começar
 
+👉 **[docs/12 — Runbook: operar no Onvio Express](docs/12-runbook-onvio-express.md)** —
+o passo a passo de execução, com a mão no Onvio.
 👉 **[docs/11 — Express e envio funcionando esta semana](docs/11-express-esta-semana.md)** —
 plano dia a dia quando o prazo é a semana corrente.
 👉 **[docs/09 — Plano de implantação passo a passo](docs/09-plano-implementacao.md)** —
@@ -30,6 +32,7 @@ o roteiro completo, escrito para um escritório que começou agora.
 | [09 Implantação](docs/09-plano-implementacao.md) | Semana a semana, com comandos |
 | [10 Operação](docs/10-operacao-seguranca.md) | Rotina, backup, LGPD, indicadores |
 | [11 Express esta semana](docs/11-express-esta-semana.md) | Envio em produção em 5 dias, nos dois mecanismos possíveis |
+| [12 Runbook Onvio](docs/12-runbook-onvio-express.md) | Rotina diária de execução no Onvio Express |
 
 ---
 
@@ -53,6 +56,7 @@ python -m docauto relatorio            # % automático, pendências por motivo
 
 python -m docauto enviar --dry-run     # mostra o que iria para o Express
 python -m docauto enviar               # monta o lote / copia para a pasta monitorada
+python -m docauto envio-confirmar --lote D:/CONTABIL/LOTE_EXPRESS/2026-08
 python -m docauto envio-status         # o que o Express consumiu e o que travou
 ```
 
@@ -78,10 +82,11 @@ candidatos e as sugestões de empresa — é o painel de exceções da Fase 1.
 python -m unittest discover -s tests -t .
 ```
 
-51 testes cobrindo dígito verificador de CNPJ, prioridade da competência
+60 testes cobrindo dígito verificador de CNPJ, prioridade da competência
 (vencimento nunca vira competência), PIS × COFINS, supressão do DAS, retenção
 conjunta, sanitização de nome no Windows, não sobrescrita, detecção de duplicado e a fila
-de envio (idempotência, piloto, limite, conciliação, bloqueio).
+de envio (idempotência, piloto, limite, conciliação, bloqueio) e o fechamento
+do ciclo pela planilha de conferência.
 
 ## O que o escritório configura (sem programar)
 
@@ -100,9 +105,11 @@ de envio (idempotência, piloto, limite, conciliação, bloqueio).
 - ✅ **Fase 3 — envio ao Express**: fila com idempotência por SHA-256, empresas
   piloto, limite por rodada e conciliação. Dois modos na mesma fila —
   `lote_manual` (funciona hoje, sem depender de confirmação) e
-  `pasta_monitorada` (uma linha de config quando confirmado).
-  Ligar em [docs/11](docs/11-express-esta-semana.md); cenários e perguntas para
-  a Thomson Reuters em [docs/08](docs/08-integracao-express.md)
+  `pasta_monitorada` (uma linha de config quando confirmado). O ciclo do lote
+  fecha com `envio-confirmar`, que lê a planilha preenchida e mede quanto o
+  Express vinculou sozinho. Rotina em [docs/12](docs/12-runbook-onvio-express.md);
+  plano da semana em [docs/11](docs/11-express-esta-semana.md); cenários e
+  perguntas para a Thomson Reuters em [docs/08](docs/08-integracao-express.md)
 - 📋 **Fase 4** — painel de exceções: só quando a fila justificar
 
 > **Antes de produção:** conferir `config/codigos_receita.yaml` contra a tabela

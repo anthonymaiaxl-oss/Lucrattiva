@@ -370,3 +370,104 @@ class TestEnvioNoPipeline(TestPipeline):
         r = self.resultado("das.txt")
         self.assertEqual(r.envio, "")
         self.assertEqual(self.proc.fila.itens, [])
+
+
+class TestConfirmacaoDoLote(unittest.TestCase):
+    """Fecha o ciclo em produto web: quem diz se o Express vinculou é a pessoa,
+    pela planilha. Sem isso a fila ficaria em ENVIADO para sempre."""
+
+    def setUp(self):
+        from docauto.envio import FilaEnvio, Item, escrever_conferencia
+        self.tmp = Path(tempfile.mkdtemp())
+        self.lote = self.tmp / "LOTE" / "2026-08"
+        self.fila = FilaEnvio(self.tmp / "envio.csv")
+        self.cfg = {"modo": "lote_manual", "pasta_lote": str(self.tmp / "LOTE")}
+        self.itens = []
+        for i, tipo in enumerate(("DAS", "PIS", "COFINS")):
+            origem = self.tmp / f"2026-08_{tipo}_EXEMPLO.pdf"
+            origem.write_text(tipo, encoding="utf-8")
+            item = Item(hash=f"h{i}", arquivo=str(origem), nome=origem.name,
+                        empresa_id="0001", empresa="EMPRESA EXEMPLO", tipo=tipo,
+                        competencia="2026-08", decisao=AUTOMATICO)
+            self.fila.enfileirar(item)
+            self.itens.append(item)
+        self.fila.enviar(self.cfg)
+        escrever_conferencia(self.itens, self.lote)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def responder(self, respostas: list[str]):
+        import csv as _csv
+        planilha = self.lote / "_CONFERIR.csv"
+        linhas = list(_csv.DictReader(
+            planilha.read_text(encoding="utf-8-sig").splitlines(), delimiter=";"))
+        for linha, resposta in zip(linhas, respostas):
+            linha["tarefa_vinculada"] = resposta
+        with planilha.open("w", newline="", encoding="utf-8-sig") as f:
+            w = _csv.DictWriter(f, fieldnames=linhas[0].keys(), delimiter=";")
+            w.writeheader()
+            w.writerows(linhas)
+
+    def test_vinculada_vira_consumido_e_sai_da_pasta(self):
+        from docauto.envio import CONSUMIDO
+        self.responder(["SIM", "", ""])
+        self.fila.confirmar_lote(self.lote)
+        self.assertEqual(self.fila.itens[0].estado, CONSUMIDO)
+        self.assertEqual(self.fila.itens[0].resultado_express, "VINCULADA")
+        self.assertFalse((self.lote / self.itens[0].nome).exists())
+        self.assertTrue((self.lote / "_ENVIADOS" / self.itens[0].nome).exists())
+
+    def test_multipla_conta_como_vinculada_mas_fica_registrada(self):
+        from docauto.envio import CONSUMIDO
+        self.responder(["MULTIPLA", "", ""])
+        self.fila.confirmar_lote(self.lote)
+        self.assertEqual(self.fila.itens[0].estado, CONSUMIDO)
+        self.assertEqual(self.fila.itens[0].resultado_express, "MULTIPLA")
+        self.assertIn("escolha manual", self.fila.itens[0].observacao)
+
+    def test_nao_encontrada_vira_parado_e_arquivo_permanece(self):
+        from docauto.envio import PARADO
+        self.responder(["NAO", "", ""])
+        self.fila.confirmar_lote(self.lote)
+        self.assertEqual(self.fila.itens[0].estado, PARADO)
+        self.assertTrue((self.lote / self.itens[0].nome).exists())
+
+    def test_linha_sem_resposta_nao_muda_nada(self):
+        from docauto.envio import ENVIADO
+        resultados = self.fila.confirmar_lote(self.lote)
+        self.assertTrue(all(r == "SEM_RESPOSTA" for _, r in resultados))
+        self.assertTrue(all(i.estado == ENVIADO for i in self.fila.itens))
+
+    def test_resposta_nao_reconhecida_nao_altera_o_item(self):
+        from docauto.envio import ENVIADO
+        self.responder(["talvez", "", ""])
+        resultados = self.fila.confirmar_lote(self.lote)
+        self.assertTrue(resultados[0][1].startswith("RESPOSTA_NAO_RECONHECIDA"))
+        self.assertEqual(self.fila.itens[0].estado, ENVIADO)
+
+    def test_dry_run_nao_move_nem_grava(self):
+        from docauto.envio import ENVIADO, FilaEnvio
+        self.responder(["SIM", "SIM", "SIM"])
+        self.fila.confirmar_lote(self.lote, dry_run=True)
+        self.assertTrue((self.lote / self.itens[0].nome).exists())
+        recarregada = FilaEnvio(self.tmp / "envio.csv")
+        self.assertTrue(all(i.estado == ENVIADO for i in recarregada.itens))
+
+    def test_planilha_ausente_avisa(self):
+        (self.lote / "_CONFERIR.csv").unlink()
+        with self.assertRaises(FileNotFoundError):
+            self.fila.confirmar_lote(self.lote)
+
+    def test_metricas(self):
+        self.responder(["SIM", "MULTIPLA", "NAO"])
+        self.fila.confirmar_lote(self.lote)
+        m = self.fila.metricas_express()
+        self.assertEqual((m["VINCULADA"], m["MULTIPLA"], m["NAO_ENCONTRADA"]), (1, 1, 1))
+
+    def test_confirmar_duas_vezes_e_seguro(self):
+        from docauto.envio import CONSUMIDO
+        self.responder(["SIM", "SIM", "SIM"])
+        self.fila.confirmar_lote(self.lote)
+        self.fila.confirmar_lote(self.lote)
+        self.assertTrue(all(i.estado == CONSUMIDO for i in self.fila.itens))

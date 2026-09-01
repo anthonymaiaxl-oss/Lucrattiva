@@ -49,6 +49,7 @@ class Item:
     enviado_em: str = ""
     confirmado_em: str = ""
     destino_envio: str = ""
+    resultado_express: str = ""    # VINCULADA | MULTIPLA | NAO_ENCONTRADA
     observacao: str = ""
 
 
@@ -186,6 +187,83 @@ class FilaEnvio:
         contagem: dict[str, int] = {}
         for item in self.itens:
             contagem[item.estado] = contagem.get(item.estado, 0) + 1
+        return contagem
+
+    # ------------------------------------------------------------------ #
+
+    RESULTADOS = {
+        "SIM": "VINCULADA", "S": "VINCULADA", "VINCULADA": "VINCULADA",
+        "OK": "VINCULADA", "1": "VINCULADA",
+        "MULTIPLA": "MULTIPLA", "MULTIPLAS": "MULTIPLA", "ESCOLHI": "MULTIPLA",
+        "VARIAS": "MULTIPLA", "M": "MULTIPLA",
+        "NAO": "NAO_ENCONTRADA", "N": "NAO_ENCONTRADA",
+        "NAO ENCONTRADA": "NAO_ENCONTRADA", "PENDENTE": "NAO_ENCONTRADA",
+        "0": "NAO_ENCONTRADA",
+    }
+
+    def confirmar_lote(self, pasta: str | Path, dry_run: bool = False,
+                       mover: bool = True) -> list[tuple[Item, str]]:
+        """Fecha o ciclo do modo lote a partir da planilha preenchida.
+
+        Em produto web não existe pasta para observar: quem diz se o Express
+        vinculou é a pessoa que subiu o lote. A planilha _CONFERIR.csv é esse
+        retorno, e sem ela a fila ficaria em ENVIADO para sempre — ou seja,
+        ninguém saberia o que realmente entrou no Onvio.
+        """
+        pasta = Path(pasta)
+        planilha = pasta / "_CONFERIR.csv"
+        if not planilha.exists():
+            raise FileNotFoundError(f"planilha de conferência não encontrada: {planilha}")
+
+        linhas = list(csv.DictReader(
+            planilha.read_text(encoding="utf-8-sig").splitlines(), delimiter=";"))
+        por_nome = {i.nome: i for i in self.itens}
+        agora = datetime.now().isoformat(timespec="seconds")
+        resultados: list[tuple[Item, str]] = []
+        enviados_dir = pasta / "_ENVIADOS"
+
+        for linha in linhas:
+            nome = (linha.get("arquivo") or "").strip()
+            item = por_nome.get(nome)
+            if not item:
+                continue
+            bruto = (linha.get("tarefa_vinculada") or "").strip().upper()
+            if not bruto:
+                resultados.append((item, "SEM_RESPOSTA"))
+                continue
+            resultado = self.RESULTADOS.get(bruto)
+            if not resultado:
+                resultados.append((item, f"RESPOSTA_NAO_RECONHECIDA:{bruto}"))
+                continue
+
+            item.resultado_express = resultado
+            item.observacao = (linha.get("observacao") or "").strip()
+            if resultado == "NAO_ENCONTRADA":
+                item.estado = PARADO
+                if not item.observacao:
+                    item.observacao = "Express não encontrou tarefa — tratar dentro do Onvio"
+            else:
+                item.estado = CONSUMIDO
+                item.confirmado_em = agora
+                if resultado == "MULTIPLA" and not item.observacao:
+                    item.observacao = "exigiu escolha manual da tarefa"
+                if mover and not dry_run:
+                    origem = pasta / nome
+                    if origem.exists():
+                        enviados_dir.mkdir(parents=True, exist_ok=True)
+                        shutil.move(str(origem), str(enviados_dir / nome))
+            resultados.append((item, resultado))
+
+        if not dry_run:
+            self.salvar()
+        return resultados
+
+    def metricas_express(self) -> dict[str, int]:
+        """Números que decidem o próximo passo do projeto."""
+        contagem = {"VINCULADA": 0, "MULTIPLA": 0, "NAO_ENCONTRADA": 0, "SEM_RESPOSTA": 0}
+        for item in self.itens:
+            chave = item.resultado_express or "SEM_RESPOSTA"
+            contagem[chave] = contagem.get(chave, 0) + 1
         return contagem
 
     def reenfileirar(self, hash_doc: str) -> bool:
