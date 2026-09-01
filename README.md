@@ -36,6 +36,7 @@ o roteiro completo, escrito para um escritório que começou agora.
 | [13 Calibrar templates](docs/13-calibrar-templates.md) | Ajustar os templates às suas guias, com `diagnosticar` |
 | [14 Servidor + Dropbox](docs/14-copias-servidor-dropbox.md) | Cópias em vários destinos e a ordem correta do fluxo |
 | [15 Acessos e instalação](docs/15-acessos-e-instalacao.md) | O que está automatizado e o que só você pode fazer |
+| [16 Espelhar o Onvio](docs/16-espelhar-o-onvio.md) | Conferir cadastro e obrigações a partir da exportação do Onvio |
 
 ---
 
@@ -66,6 +67,7 @@ python -m docauto envio-status         # o que o Express consumiu e o que travou
 
 python -m docauto diagnosticar --entrada C:/amostras --texto C:/amostras/_texto
 python -m docauto espelhar             # refaz cópias que falharam (Dropbox fora do ar)
+python -m docauto onvio-conferir --empresas data/onvio/empresas.csv --tarefas data/onvio/tarefas.csv
 ```
 
 No Windows, `scripts/processar.bat` e `scripts/enviar.bat` já estão prontos para
@@ -90,12 +92,12 @@ candidatos e as sugestões de empresa — é o painel de exceções da Fase 1.
 python -m unittest discover -s tests -t .
 ```
 
-91 testes cobrindo dígito verificador de CNPJ, prioridade da competência
+99 testes cobrindo dígito verificador de CNPJ, prioridade da competência
 (vencimento nunca vira competência), PIS × COFINS, supressão do DAS, retenção
 conjunta, sanitização de nome no Windows, não sobrescrita, detecção de duplicado e a fila
 de envio (idempotência, piloto, limite, conciliação, bloqueio) e o fechamento
 do ciclo pela planilha de conferência, arquivamento em múltiplos destinos e a
-fila de espelho, e a verificação de ambiente.
+fila de espelho, a verificação de ambiente e a conferência contra a exportação do Onvio.
 
 ## O que o escritório configura (sem programar)
 

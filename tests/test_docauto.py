@@ -644,3 +644,81 @@ class TestDoutor(unittest.TestCase):
         self.cfg["estrutura"]["limite_caminho"] = 40
         checagens = verificar(self.cfg, Processador(self.cfg))
         self.assertEqual(self.item(checagens, "limite de caminho").nivel, ERRO)
+
+
+class TestConferenciaOnvio(unittest.TestCase):
+    """Cruzamento entre a exportação do Onvio e o que a automação conhece."""
+
+    ONVIO = FIXTURES / "onvio"
+
+    @classmethod
+    def setUpClass(cls):
+        cls.cadastro = Cadastro.carregar(RAIZ / "data" / "empresas.exemplo.csv")
+        cls.templates = carregar_templates(RAIZ / "config" / "templates")
+
+    def empresas(self):
+        from docauto.onvio import ler_planilha
+        return ler_planilha(self.ONVIO / "empresas_onvio.csv")
+
+    def test_reconhece_colunas_com_acento_e_nomes_diferentes(self):
+        from docauto.onvio import mapear_colunas
+        mapa = mapear_colunas(list(self.empresas()[0].keys()))
+        self.assertEqual(mapa["cnpj"], "CNPJ")
+        self.assertEqual(mapa["razao_social"], "Razão Social")
+        self.assertEqual(mapa["codigo"], "Código")
+        self.assertEqual(mapa["regime"], "Regime Tributário")
+
+    def test_aponta_empresa_que_falta_dos_dois_lados(self):
+        from docauto.onvio import conferir_empresas
+        conf = conferir_empresas(self.empresas(), self.cadastro)
+        tipos = {d.tipo for d in conf.divergencias}
+        self.assertIn("FALTA_NO_CADASTRO", tipos)
+        self.assertIn("FALTA_NO_ONVIO", tipos)
+        self.assertEqual(conf.coincidentes, 2)
+
+    def test_exportacao_sem_cnpj_avisa_em_vez_de_quebrar(self):
+        from docauto.onvio import conferir_empresas
+        with self.assertRaises(ValueError) as ctx:
+            conferir_empresas([{"Empresa": "X", "Cidade": "Y"}], self.cadastro)
+        self.assertIn("CNPJ", str(ctx.exception))
+
+    def test_casa_obrigacao_do_onvio_com_template(self):
+        from docauto.onvio import casar_tarefa
+        self.assertEqual(casar_tarefa("DAS - Simples Nacional", self.templates), "DAS")
+        self.assertEqual(casar_tarefa("DARF PIS/PASEP", self.templates), "PIS")
+        self.assertEqual(casar_tarefa("DARF COFINS", self.templates), "COFINS")
+        self.assertIsNone(casar_tarefa("Folha de pagamento", self.templates))
+
+    def test_conferencia_de_tarefas_separa_os_dois_lados(self):
+        from docauto.onvio import conferir_tarefas, ler_planilha
+        conf = conferir_tarefas(ler_planilha(self.ONVIO / "tarefas_onvio.csv"),
+                                self.templates)
+        self.assertEqual(conf.por_template, {"DAS": 1, "PIS": 1, "COFINS": 1})
+        self.assertEqual(conf.templates_sem_tarefa, ["CSLL", "IR"])
+        self.assertIn("Folha de pagamento", conf.sem_template)
+
+    def test_gera_cadastro_valido_a_partir_da_exportacao(self):
+        from docauto.onvio import escrever_cadastro, gerar_cadastro
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            registros = gerar_cadastro(self.empresas())
+            alvo = escrever_cadastro(registros, tmp / "empresas.csv")
+            novo = Cadastro.carregar(alvo)
+            self.assertEqual(novo.validar(), [])
+            self.assertEqual(len(novo.empresas), 3)
+            self.assertEqual(novo.empresas[0].codigo_dominio, "1001")
+            self.assertTrue(all(e.nome_curto for e in novo.empresas))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_empresa_inativa_no_onvio_vira_ativa_nao(self):
+        from docauto.onvio import gerar_cadastro
+        linhas = [{"CNPJ": "11.222.333/0001-81", "Razão Social": "X LTDA",
+                   "Situação": "Inativa"}]
+        self.assertEqual(gerar_cadastro(linhas)[0]["ATIVA"], "NAO")
+
+    def test_cnpj_invalido_na_exportacao_e_reportado(self):
+        from docauto.onvio import conferir_empresas
+        linhas = [{"CNPJ": "11.222.333/0001-82", "Razão Social": "ERRADA LTDA"}]
+        conf = conferir_empresas(linhas, self.cadastro)
+        self.assertEqual(conf.divergencias[0].tipo, "CNPJ_INVALIDO_NO_ONVIO")

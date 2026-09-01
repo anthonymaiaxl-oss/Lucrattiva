@@ -13,6 +13,7 @@
     python -m docauto diagnosticar --entrada C:/amostras --texto C:/amostras/_texto
     python -m docauto espelhar
     python -m docauto doutor
+    python -m docauto onvio-conferir --empresas data/onvio/empresas.csv
 """
 from __future__ import annotations
 
@@ -28,6 +29,8 @@ from .classify import classificar, pontuar_todos
 from .config import caminho_projeto, carregar_config, destinos
 from .doutor import ERRO, OK, resumo, verificar
 from .espelho import FilaEspelho
+from .onvio import (conferir_empresas, conferir_tarefas, escrever_cadastro,
+                    gerar_cadastro, ler_planilha)
 from .normalize import extrair_campos, formatar_cnpj
 from .confidence import AUTOMATICO, PENDENTE, REVISAO
 from .empresas import Cadastro
@@ -145,6 +148,65 @@ def cmd_relatorio(args) -> int:
 
 
 MARCAS = {"OK": "OK  ", "AVISO": "!   ", "ERRO": "ERRO"}
+
+
+def cmd_onvio_conferir(args) -> int:
+    """Cruza as exportações do Onvio com o que a automação conhece."""
+    cfg = carregar_config(args.config)
+    linhas = ler_planilha(args.empresas)
+    print(f"exportação de empresas: {len(linhas)} linha(s), "
+          f"colunas: {', '.join(list(linhas[0].keys())[:8]) if linhas else '-'}")
+
+    if args.gerar_cadastro:
+        registros = gerar_cadastro(linhas)
+        alvo = escrever_cadastro(registros, args.gerar_cadastro)
+        print(f"\n{len(registros)} empresa(s) escritas em {alvo}")
+        print("confira NOME_CURTO e REGIME_TRIBUTARIO antes de usar; "
+              "os IDs foram gerados em sequência e não devem mudar depois")
+        return 0
+
+    try:
+        cadastro = Cadastro.carregar(caminho_projeto(cfg, cfg["cadastro"]["arquivo"]))
+    except FileNotFoundError:
+        print("\ncadastro ainda não existe — rode com --gerar-cadastro "
+              "para criá-lo a partir desta exportação")
+        return 1
+
+    conf = conferir_empresas(linhas, cadastro)
+    print(f"\nempresas: {conf.no_onvio} no Onvio, {conf.no_cadastro} no cadastro, "
+          f"{conf.coincidentes} conferem")
+    if conf.divergencias:
+        print(f"\n{len(conf.divergencias)} divergência(s):")
+        for d in conf.divergencias[:40]:
+            print(f"  [{d.tipo:24}] {d.chave}  {d.detalhe}")
+            if d.acao:
+                print(f"      -> {d.acao}")
+        if len(conf.divergencias) > 40:
+            print(f"  ... e mais {len(conf.divergencias) - 40}")
+    else:
+        print("nenhuma divergência de empresa")
+
+    if args.tarefas:
+        proc_templates = Processador(cfg).templates
+        tarefas = conferir_tarefas(ler_planilha(args.tarefas), proc_templates)
+        print(f"\ntarefas/obrigações: {tarefas.total} linha(s)")
+        for tipo, qtd in sorted(tarefas.por_template.items(), key=lambda x: -x[1]):
+            print(f"  {tipo:10} {qtd:5} obrigação(ões) no Onvio")
+        if tarefas.templates_sem_tarefa:
+            print("\ntemplates SEM obrigação correspondente no Onvio:")
+            for tipo in tarefas.templates_sem_tarefa:
+                print(f"  {tipo}")
+            print("  -> documento desse tipo vai ser classificado certo, mas o "
+                  "Express devolve 'tarefa não encontrada'")
+        if tarefas.sem_template:
+            print(f"\nobrigações do Onvio SEM template ({len(tarefas.sem_template)}):")
+            for nome in tarefas.sem_template[:25]:
+                print(f"  {nome}")
+            if len(tarefas.sem_template) > 25:
+                print(f"  ... e mais {len(tarefas.sem_template) - 25}")
+            print("  -> são candidatas a template novo (docs/13), na ordem de volume")
+
+    return 1 if conf.divergencias else 0
 
 
 def cmd_doutor(args) -> int:
@@ -373,6 +435,14 @@ def main(argv=None) -> int:
 
     sub.add_parser("init", help="cria config, cadastro e pastas").set_defaults(func=cmd_init)
     sub.add_parser("validar", help="confere o cadastro de empresas").set_defaults(func=cmd_validar)
+    s = sub.add_parser("onvio-conferir",
+                       help="cruza a exportação do Onvio com o cadastro e os templates")
+    s.add_argument("--empresas", required=True, help="exportação de empresas (CSV/XLSX)")
+    s.add_argument("--tarefas", help="exportação de tarefas/obrigações (CSV/XLSX)")
+    s.add_argument("--gerar-cadastro", metavar="DESTINO",
+                   help="cria data/empresas.csv a partir da exportação")
+    s.set_defaults(func=cmd_onvio_conferir)
+
     sub.add_parser("doutor",
                    help="verifica pastas, permissões, leitores e destinos").set_defaults(
         func=cmd_doutor)

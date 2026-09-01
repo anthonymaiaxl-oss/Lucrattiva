@@ -13,10 +13,15 @@ os dois:
 | **B — pasta local do Express** | O artigo oficial [Como utilizar Express? (código 9146)](https://suporte.dominioatendimento.com/central/faces/solucao.html?codigo=9146) descreve **baixar e usar uma pasta local no computador**: o documento colocado nela é enviado ao Processos. Se existir na sua conta, é o melhor caminho. | Confirme na tela do Express (Parte 1, passo 5). Config: `modo: "pasta_monitorada"` |
 | **C — upload pelo navegador, em lote** | A automação monta a pasta da competência com nomes padronizados e planilha; a pessoa arrasta para o Express no navegador. | **Comece por aqui.** Funciona hoje, sem depender de nada. Config: `modo: "lote_manual"` |
 
-> Não consegui abrir as páginas do Portal do Cliente a partir daqui (bloqueio de
-> rede desta sessão), então **os nomes de menu e botão do Onvio não estão
-> transcritos** — os passos abaixo descrevem a ação, e você confirma o rótulo na
-> tela. Onde houver dúvida, o artigo 9146 é a fonte.
+> Não consegui abrir as páginas do Portal do Cliente a partir daqui — o proxy
+> desta sessão bloqueia `suporte.dominioatendimento.com` na camada de rede (403
+> no CONNECT), então nenhuma ferramenta acessa. Por isso **os nomes de menu e
+> botão do Onvio não estão transcritos**: os passos descrevem a ação, e você
+> confirma o rótulo na tela.
+>
+> **Para transformar isto em passo a passo literal:** cole o texto do artigo
+> **12392 — Onvio Express** em `docs/fontes/express-12392.md` (instruções em
+> `docs/fontes/README.md`). É o artigo mais completo sobre o Express.
 >
 > Cuidado para não confundir com o **Onvio Link**, que é o sincronizador do
 > **Onvio Documentos** (Windows) — outro produto, outra finalidade. Não é o
