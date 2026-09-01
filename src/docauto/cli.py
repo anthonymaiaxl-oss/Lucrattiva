@@ -10,6 +10,8 @@
     python -m docauto enviar
     python -m docauto envio-status
     python -m docauto envio-confirmar --lote D:/CONTABIL/LOTE_EXPRESS/2026-08
+    python -m docauto diagnosticar --entrada C:/amostras --texto C:/amostras/_texto
+    python -m docauto espelhar
 """
 from __future__ import annotations
 
@@ -20,7 +22,11 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-from .config import caminho_projeto, carregar_config
+from . import textio
+from .classify import classificar, pontuar_todos
+from .config import caminho_projeto, carregar_config, destinos
+from .espelho import FilaEspelho
+from .normalize import extrair_campos, formatar_cnpj
 from .confidence import AUTOMATICO, PENDENTE, REVISAO
 from .empresas import Cadastro
 from .envio import PARADO, FilaEnvio, escrever_conferencia
@@ -133,6 +139,95 @@ def cmd_relatorio(args) -> int:
         print("\nmotivos de pendência (atacar de cima para baixo):")
         for chave, qtd in motivos.most_common():
             print(f"  {chave:34} {qtd:5}")
+    return 0
+
+
+def cmd_diagnosticar(args) -> int:
+    """Mostra POR QUE cada documento foi classificado assim. É a ferramenta de
+    calibração dos templates — ver docs/13."""
+    cfg = carregar_config(args.config)
+    proc = Processador(cfg)
+    pasta = Path(args.entrada)
+    arquivos = [a for a in sorted(pasta.rglob("*")) if a.is_file()]
+    if not arquivos:
+        print(f"nenhum arquivo em {pasta}")
+        return 1
+    saida_texto = Path(args.texto) if args.texto else None
+    if saida_texto:
+        saida_texto.mkdir(parents=True, exist_ok=True)
+
+    for arquivo in arquivos:
+        texto, origem = textio.ler(arquivo,
+                                   cfg["processamento"].get("ocr_habilitado", False),
+                                   cfg["processamento"].get("ocr_idioma", "por"))
+        ex = extrair_campos(texto, origem)
+        print("=" * 78)
+        print(f"{arquivo.name}")
+        print(f"  texto......: {ex.origem_texto}, {len(ex.texto_norm)} caracteres")
+        if not ex.texto_norm.strip():
+            print("  SEM TEXTO — PDF é imagem. Ligue o OCR (Fase 2) para calibrar este.")
+            continue
+
+        print(f"  cnpj.......: {formatar_cnpj(ex.cnpj) if ex.cnpj else '-'}"
+              + (f"   inválidos: {ex.cnpjs_invalidos}" if ex.cnpjs_invalidos else ""))
+        print(f"  competência: {ex.competencia.valor or '-'} ({ex.competencia.fonte})")
+        print(f"  valor......: {ex.valor if ex.valor is not None else '-'}"
+              f"   vencimento: {ex.vencimento or '-'}")
+        print(f"  códigos....: {ex.codigos_receita or '-'}"
+              + (f"  -> {[proc.tabela.tributo(c) for c in ex.codigos_receita]}"
+                 if ex.codigos_receita else ""))
+        print(f"  razões.....: {ex.razoes[:2] or '-'}")
+
+        print("  templates:")
+        for cand in pontuar_todos(ex, proc.templates, proc.tabela)[:args.top]:
+            t = proc.templates[cand.tipo]
+            ausentes = [k.termo for k in t.principais
+                        if not k.encontrado(ex.texto_norm, ex.texto_caixa)]
+            print(f"    {cand.tipo:8} {cand.score:3}/{cand.maximo:3} ({cand.relativo:3}%)")
+            for motivo in cand.motivos:
+                print(f"       . {motivo}")
+            if ausentes:
+                print(f"       - principais ausentes: {', '.join(ausentes[:5])}")
+
+        cls = classificar(ex, proc.templates, proc.tabela,
+                          cfg["classificacao"]["score_minimo_tipo"],
+                          cfg["classificacao"]["margem_desempate"])
+        resolucao = proc.cadastro.resolver(ex, pasta_origem=str(arquivo.parent))
+        print(f"  => tipo {cls.tipo}"
+              + (f"/{cls.subtipo}" if cls.subtipo else "")
+              + f"   empresa: {resolucao.empresa.id if resolucao.empresa else '-'}"
+              f" ({resolucao.nivel})")
+        if cls.motivos:
+            print(f"     {cls.motivos[-1]}")
+
+        if saida_texto:
+            alvo = saida_texto / f"{arquivo.stem}.txt"
+            alvo.write_text(ex.texto_norm, encoding="utf-8")
+        if args.linhas:
+            print("  primeiras linhas do texto lido:")
+            for linha in ex.texto_norm.splitlines()[:args.linhas]:
+                if linha.strip():
+                    print(f"    | {linha[:100]}")
+
+    if saida_texto:
+        print("=" * 78)
+        print(f"texto normalizado de cada documento salvo em {saida_texto}")
+        print("é dele que saem as palavras-chave dos templates — ver docs/13")
+    return 0
+
+
+def cmd_espelhar(args) -> int:
+    cfg = carregar_config(args.config)
+    fila = FilaEspelho(caminho_projeto(cfg, cfg.get("espelho", "data/registro/espelho.csv")))
+    if not fila.pendentes():
+        print("nenhuma cópia pendente")
+        return 0
+    for item, status in fila.refazer(dry_run=args.dry_run):
+        print(f"[{status:18}] {item.destino_nome}  {item.nome}"
+              + (f"  ({item.erro})" if item.erro else ""))
+    restantes = len(fila.pendentes())
+    print(f"\n{restantes} cópia(s) ainda pendente(s)"
+          + ("  (simulação)" if args.dry_run else ""))
     return 0
 
 
@@ -253,6 +348,19 @@ def main(argv=None) -> int:
     s.add_argument("--dry-run", action="store_true")
     s.set_defaults(func=cmd_estrutura)
 
+    s = sub.add_parser("diagnosticar",
+                       help="mostra por que cada documento foi classificado assim")
+    s.add_argument("--entrada", required=True, help="pasta com documentos de amostra")
+    s.add_argument("--texto", help="pasta onde salvar o texto lido de cada documento")
+    s.add_argument("--top", type=int, default=3, help="quantos templates detalhar")
+    s.add_argument("--linhas", type=int, default=0,
+                   help="mostrar as N primeiras linhas do texto lido")
+    s.set_defaults(func=cmd_diagnosticar)
+
+    s = sub.add_parser("espelhar", help="refaz as cópias secundárias que falharam")
+    s.add_argument("--dry-run", action="store_true")
+    s.set_defaults(func=cmd_espelhar)
+
     s = sub.add_parser("processar", help="processa a pasta de entrada")
     s.add_argument("--entrada")
     s.add_argument("--dry-run", action="store_true", help="não copia nada, só mostra")
@@ -278,7 +386,11 @@ def main(argv=None) -> int:
         func=cmd_envio_status)
 
     args = p.parse_args(argv)
-    return args.func(args)
+    try:
+        return args.func(args)
+    except FileNotFoundError as erro:
+        print(f"ERRO: {erro}")
+        return 1
 
 
 if __name__ == "__main__":

@@ -10,9 +10,10 @@ from pathlib import Path
 from . import archive, envio, routing, textio
 from .classify import classificar
 from .confidence import AUTOMATICO, PENDENTE, REVISAO, avaliar
-from .config import caminho_projeto, carregar_config
+from .config import caminho_projeto, carregar_config, destinos, entradas
 from .empresas import Cadastro
 from .envio import FilaEnvio, Item
+from .espelho import Espelho, FilaEspelho
 from .ledger import Registro
 from .normalize import extrair_campos, formatar_cnpj
 from .templates import carregar_codigos, carregar_templates
@@ -34,6 +35,7 @@ class Resultado:
     destino: str = ""
     hash_documento: str = ""
     envio: str = ""
+    copias: list[str] = field(default_factory=list)
     travas: list[str] = field(default_factory=list)
     avisos: list[str] = field(default_factory=list)
     motivos_classificacao: list[str] = field(default_factory=list)
@@ -55,18 +57,26 @@ class Processador:
             caminho_projeto(self.cfg, self.cfg["registro"]["jsonl"]))
         self.fila = FilaEnvio(caminho_projeto(
             self.cfg, self.cfg.get("envio", {}).get("fila", "data/registro/envio.csv")))
+        self.destinos = destinos(self.cfg)
+        self.espelho = FilaEspelho(caminho_projeto(
+            self.cfg, self.cfg.get("espelho", "data/registro/espelho.csv")))
 
     # ------------------------------------------------------------------ #
 
     def processar_pasta(self, entrada: str | None = None, dry_run: bool = False,
                         hoje: date | None = None) -> list[Resultado]:
-        pasta = Path(entrada or self.cfg["pastas"]["entrada"])
-        ignorar = {Path(self.cfg["pastas"]["processados"]).name, "_PENDENTES", "_LOGS"}
+        pastas = [entrada] if entrada else entradas(self.cfg)
+        ignorar = {Path(self.cfg["pastas"]["processados"]).name,
+                   "_PENDENTES", "_LOGS", "_ENVIADOS"}
         resultados = []
-        for arquivo in sorted(pasta.rglob("*")):
-            if not arquivo.is_file() or set(arquivo.parts) & ignorar:
+        for caminho_pasta in pastas:
+            pasta = Path(caminho_pasta)
+            if not pasta.exists():
                 continue
-            resultados.append(self.processar_arquivo(arquivo, dry_run=dry_run, hoje=hoje))
+            for arquivo in sorted(pasta.rglob("*")):
+                if not arquivo.is_file() or set(arquivo.parts) & ignorar:
+                    continue
+                resultados.append(self.processar_arquivo(arquivo, dry_run=dry_run, hoje=hoje))
         return resultados
 
     def processar_arquivo(self, caminho: str | Path, dry_run: bool = False,
@@ -120,26 +130,61 @@ class Processador:
 
         if av.decisao in (AUTOMATICO, REVISAO) and resolucao.empresa:
             template = self.templates.get(cls.tipo)
-            destino = routing.montar_caminho(
-                resolucao.empresa, cls, ex.competencia.valor, self.cfg,
-                self.cfg["pastas"]["base_clientes"],
-                setor=(template.setor if template else "FISCAL"),
-                grupo=(template.grupo if template else "GUIAS"))
             nome = routing.montar_nome(resolucao.empresa, cls, ex.competencia.valor,
                                        caminho.suffix, self.cfg)
-            if routing.caminho_muito_longo(destino, nome,
-                                           self.cfg["estrutura"]["limite_caminho"]):
-                r.decisao = PENDENTE
-                r.travas.append("CAMINHO_MUITO_LONGO: encurtar nome da pasta da empresa")
-            else:
-                r.status_arquivo, r.destino = archive.arquivar(caminho, destino, nome, dry_run)
-                r.hash_documento = archive.sha256(caminho)
-                if not dry_run:
-                    r.envio = self._enfileirar_envio(r, resolucao.empresa, nome)
+            r.hash_documento = archive.sha256(caminho)
+            self._arquivar_em_todos(r, caminho, resolucao.empresa, cls,
+                                    ex.competencia.valor, template, nome, dry_run)
+            if r.destino and not dry_run:
+                r.envio = self._enfileirar_envio(r, resolucao.empresa, nome)
 
         return self._finalizar(r, caminho, ex, dry_run)
 
     # ------------------------------------------------------------------ #
+
+    def _arquivar_em_todos(self, r: Resultado, caminho: Path, empresa, cls,
+                           competencia: str, template, nome: str, dry_run: bool) -> None:
+        """Arquiva no destino principal e espelha nos demais.
+
+        Falha em destino secundário (Dropbox fora do ar, rede caída) não derruba
+        o documento: ele já está no principal, e a cópia que faltou entra na
+        fila de espelho para ser refeita por `docauto espelhar`.
+        """
+        for destino_cfg in self.destinos:
+            pasta = routing.montar_caminho(
+                empresa, cls, competencia, self.cfg, destino_cfg["raiz"],
+                setor=(template.setor if template else "FISCAL"),
+                grupo=(template.grupo if template else "GUIAS"))
+
+            if routing.caminho_muito_longo(pasta, nome,
+                                           self.cfg["estrutura"]["limite_caminho"]):
+                if destino_cfg["principal"]:
+                    r.decisao = PENDENTE
+                    r.travas.append(
+                        "CAMINHO_MUITO_LONGO: encurtar nome da pasta da empresa")
+                    return
+                r.avisos.append(f"CAMINHO_MUITO_LONGO em {destino_cfg['nome']}")
+                continue
+
+            try:
+                status, final = archive.arquivar(caminho, pasta, nome, dry_run)
+            except OSError as erro:
+                if destino_cfg["principal"]:
+                    r.decisao = PENDENTE
+                    r.travas.append(f"DESTINO_INDISPONIVEL: {destino_cfg['nome']} ({erro})")
+                    return
+                r.avisos.append(f"ESPELHO_PENDENTE: {destino_cfg['nome']} ({erro})")
+                if not dry_run:
+                    self.espelho.registrar(Espelho(
+                        hash=r.hash_documento, origem=r.destino or str(caminho),
+                        destino_nome=destino_cfg["nome"], pasta_destino=pasta,
+                        nome=nome, erro=str(erro)))
+                continue
+
+            if destino_cfg["principal"]:
+                r.status_arquivo, r.destino = status, final
+            else:
+                r.copias.append(f"{destino_cfg['nome']}={final}")
 
     def _enfileirar_envio(self, r: Resultado, empresa, nome: str) -> str:
         """Coloca o documento arquivado na fila do Express.

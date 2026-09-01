@@ -237,15 +237,29 @@ def extrair_codigos_receita(texto_norm: str) -> list[str]:
     return achados
 
 
+_RE_RAZAO = re.compile(
+    r"[A-Z0-9&.,'\- ]{6,120}?\s(LTDA|S\.?A\.?|ME|EPP|EIRELI|MEI|SOCIEDADE"
+    r"|SIMPLES|LIMITADA)\b\.?")
+
+
 def extrair_razoes_sociais(texto_norm: str) -> list[str]:
-    """Candidatos a razão social: linhas com sufixo societário."""
-    padrao = re.compile(
-        r"^[A-Z0-9&.,'\- ]{6,120}?\s(LTDA|S\.?A\.?|ME|EPP|EIRELI|MEI|SOCIEDADE"
-        r"|SIMPLES|LIMITADA)\b\.?", re.MULTILINE)
+    """Candidatos a razão social: trechos com sufixo societário.
+
+    O rótulo é removido antes da busca. No DARF a linha vem como
+    "01 NOME / TELEFONE: EMPRESA EXEMPLO LTDA" — sem tirar o rótulo, o nome
+    não é reconhecido e a identificação de nível 2 deixa de funcionar
+    justamente nos documentos em que ela mais importa.
+    """
     candidatos: list[str] = []
-    for m in padrao.finditer(texto_norm):
+    for linha in texto_norm.splitlines():
+        trecho = linha.rsplit(":", 1)[-1] if ":" in linha else linha
+        m = _RE_RAZAO.search(trecho.strip())
+        if not m:
+            continue
         nome = re.sub(r"\s+", " ", m.group(0)).strip(" .,-")
-        if nome not in candidatos:
+        # descarta sobras de numeração de campo ("01 EMPRESA X LTDA")
+        nome = re.sub(r"^\d{1,2}\s+", "", nome)
+        if len(nome) >= 6 and nome not in candidatos:
             candidatos.append(nome)
     return candidatos
 

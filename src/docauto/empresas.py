@@ -61,6 +61,10 @@ class Cadastro:
     @classmethod
     def carregar(cls, arquivo: str | Path) -> "Cadastro":
         caminho = Path(arquivo)
+        if not caminho.exists():
+            raise FileNotFoundError(
+                f"cadastro de empresas não encontrado: {caminho}\n"
+                "rode 'python -m docauto init' ou ajuste cadastro.arquivo no config")
         bruto = caminho.read_text(encoding="utf-8-sig")
         delim = ";" if bruto.splitlines()[0].count(";") >= bruto.splitlines()[0].count(",") else ","
         empresas: list[Empresa] = []

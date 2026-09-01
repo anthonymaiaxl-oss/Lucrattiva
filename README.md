@@ -33,6 +33,8 @@ o roteiro completo, escrito para um escritório que começou agora.
 | [10 Operação](docs/10-operacao-seguranca.md) | Rotina, backup, LGPD, indicadores |
 | [11 Express esta semana](docs/11-express-esta-semana.md) | Envio em produção em 5 dias, nos dois mecanismos possíveis |
 | [12 Runbook Onvio](docs/12-runbook-onvio-express.md) | Rotina diária de execução no Onvio Express |
+| [13 Calibrar templates](docs/13-calibrar-templates.md) | Ajustar os templates às suas guias, com `diagnosticar` |
+| [14 Servidor + Dropbox](docs/14-copias-servidor-dropbox.md) | Cópias em vários destinos e a ordem correta do fluxo |
 
 ---
 
@@ -58,6 +60,9 @@ python -m docauto enviar --dry-run     # mostra o que iria para o Express
 python -m docauto enviar               # monta o lote / copia para a pasta monitorada
 python -m docauto envio-confirmar --lote D:/CONTABIL/LOTE_EXPRESS/2026-08
 python -m docauto envio-status         # o que o Express consumiu e o que travou
+
+python -m docauto diagnosticar --entrada C:/amostras --texto C:/amostras/_texto
+python -m docauto espelhar             # refaz cópias que falharam (Dropbox fora do ar)
 ```
 
 No Windows, `scripts/processar.bat` e `scripts/enviar.bat` já estão prontos para
@@ -82,11 +87,12 @@ candidatos e as sugestões de empresa — é o painel de exceções da Fase 1.
 python -m unittest discover -s tests -t .
 ```
 
-60 testes cobrindo dígito verificador de CNPJ, prioridade da competência
+86 testes cobrindo dígito verificador de CNPJ, prioridade da competência
 (vencimento nunca vira competência), PIS × COFINS, supressão do DAS, retenção
 conjunta, sanitização de nome no Windows, não sobrescrita, detecção de duplicado e a fila
 de envio (idempotência, piloto, limite, conciliação, bloqueio) e o fechamento
-do ciclo pela planilha de conferência.
+do ciclo pela planilha de conferência, arquivamento em múltiplos destinos e a
+fila de espelho.
 
 ## O que o escritório configura (sem programar)
 
@@ -96,6 +102,7 @@ do ciclo pela planilha de conferência.
 | `config/templates/*.yaml` | Um arquivo por tipo de documento |
 | `config/codigos_receita.yaml` | Código de receita → tributo (**conferir antes de usar em produção**) |
 | `data/empresas.csv` | Cadastro central (não versionado) |
+| `config/config.yaml` → `destinos:` | Servidor, Dropbox e o que mais houver — o documento vai para todos |
 | `config/config.yaml` → `envio:` | Modo de envio ao Express, empresas piloto, limite por rodada |
 
 ## Estado atual

@@ -99,24 +99,29 @@ def _pontuar(t: Template, ex: Extracao, tabela: TabelaCodigos) -> Candidato:
                      maximo=max(maximo, 1), motivos=motivos)
 
 
+def pontuar_todos(ex: Extracao, templates: dict[str, Template],
+                  tabela: TabelaCodigos) -> list[Candidato]:
+    """Pontuação de todos os templates, para diagnóstico e calibração."""
+    candidatos = {t.id: _pontuar(t, ex, tabela) for t in templates.values()}
+    for t in templates.values():
+        if t.suprime and candidatos[t.id].score >= LIMIAR_SUPRESSAO:
+            for alvo in t.suprime:
+                if alvo in candidatos:
+                    candidatos[alvo].score = max(
+                        0, candidatos[alvo].score - PENALIDADE_SUPRESSAO)
+                    candidatos[alvo].motivos.append(
+                        f"suprimido por {t.id} (documento composto, -{PENALIDADE_SUPRESSAO})")
+    return sorted(candidatos.values(),
+                  key=lambda c: (c.score, templates[c.tipo].precedencia), reverse=True)
+
+
 def classificar(ex: Extracao, templates: dict[str, Template], tabela: TabelaCodigos,
                 score_minimo: int = 35, margem: int = 15) -> Classificacao:
     if not ex.texto_norm.strip():
         return Classificacao(tipo="SEM_TEXTO", motivos=["nenhum texto extraído do arquivo"])
 
-    candidatos = {t.id: _pontuar(t, ex, tabela) for t in templates.values()}
-
     # Documento composto (DAS) suprime os tributos que ele já engloba.
-    for t in templates.values():
-        if t.suprime and candidatos[t.id].score >= LIMIAR_SUPRESSAO:
-            for alvo in t.suprime:
-                if alvo in candidatos:
-                    candidatos[alvo].score = max(0, candidatos[alvo].score - PENALIDADE_SUPRESSAO)
-                    candidatos[alvo].motivos.append(
-                        f"suprimido por {t.id} (documento composto, -{PENALIDADE_SUPRESSAO})")
-
-    ordenados = sorted(candidatos.values(),
-                       key=lambda c: (c.score, templates[c.tipo].precedencia), reverse=True)
+    ordenados = pontuar_todos(ex, templates, tabela)
     top = ordenados[0]
     segundo = ordenados[1] if len(ordenados) > 1 else Candidato("-", 0)
 

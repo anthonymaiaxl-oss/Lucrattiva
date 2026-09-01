@@ -10,7 +10,7 @@ from pathlib import Path
 CABECALHO = [
     "data_hora", "arquivo_origem", "empresa_id", "empresa", "cnpj", "tipo",
     "subtipo", "competencia", "score", "decisao", "status_arquivo", "destino",
-    "hash_documento", "envio", "travas", "avisos",
+    "hash_documento", "envio", "copias", "travas", "avisos",
 ]
 
 

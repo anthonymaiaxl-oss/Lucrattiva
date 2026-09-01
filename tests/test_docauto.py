@@ -471,3 +471,108 @@ class TestConfirmacaoDoLote(unittest.TestCase):
         self.fila.confirmar_lote(self.lote)
         self.fila.confirmar_lote(self.lote)
         self.assertTrue(all(i.estado == CONSUMIDO for i in self.fila.itens))
+
+
+class TestRazaoSocialComRotulo(unittest.TestCase):
+    def test_nome_atras_de_rotulo_de_campo(self):
+        from docauto.normalize import extrair_razoes_sociais, normalizar
+        texto = normalizar("01 NOME / TELEFONE: EMPRESA EXEMPLO COMERCIO DE ALIMENTOS LTDA")
+        self.assertEqual(extrair_razoes_sociais(texto),
+                         ["EMPRESA EXEMPLO COMERCIO DE ALIMENTOS LTDA"])
+
+    def test_pessoa_fisica_nao_vira_razao_social(self):
+        from docauto.normalize import extrair_razoes_sociais, normalizar
+        self.assertEqual(extrair_razoes_sociais(normalizar("NOME: JOAO DA SILVA")), [])
+
+    def test_identifica_empresa_em_darf_com_rotulo(self):
+        cadastro = Cadastro.carregar(RAIZ / "data" / "empresas.exemplo.csv")
+        ex = extrair_campos("01 NOME / TELEFONE: MODELO SERVICOS DE TECNOLOGIA LTDA")
+        self.assertEqual(cadastro.resolver(ex).empresa.id, "0002")
+
+
+class TestDestinosMultiplos(TestPipeline):
+    """Servidor + Dropbox: a mesma estrutura de pastas nos dois."""
+
+    def setUp(self):
+        super().setUp()
+        self.servidor = self.tmp / "CLIENTES"
+        self.dropbox = self.tmp / "DROPBOX"
+        self.proc.destinos = [
+            {"nome": "SERVIDOR", "raiz": str(self.servidor), "principal": True},
+            {"nome": "DROPBOX", "raiz": str(self.dropbox), "principal": False},
+        ]
+
+    def test_copia_para_os_dois_destinos(self):
+        r = self.resultado("das.txt")
+        self.assertEqual(r.decisao, AUTOMATICO)
+        self.assertTrue(Path(r.destino).exists())
+        self.assertTrue(str(r.destino).startswith(str(self.servidor)))
+        self.assertEqual(len(r.copias), 1)
+        copia = Path(r.copias[0].split("=", 1)[1])
+        self.assertTrue(copia.exists())
+        self.assertEqual(copia.relative_to(self.dropbox),
+                         Path(r.destino).relative_to(self.servidor))
+
+    def test_dropbox_indisponivel_nao_derruba_o_documento(self):
+        from docauto.espelho import FilaEspelho
+        self.proc.espelho = FilaEspelho(self.tmp / "espelho.csv")
+        # Dropbox "fora do ar": o caminho existe como ARQUIVO, então criar
+        # pasta dentro dele levanta OSError, igual a uma unidade desconectada.
+        self.dropbox.write_text("nao sou uma pasta", encoding="utf-8")
+
+        r = self.resultado("das.txt")
+        self.assertEqual(r.decisao, AUTOMATICO)          # documento salvo no servidor
+        self.assertTrue(Path(r.destino).exists())
+        self.assertTrue(any("ESPELHO_PENDENTE" in a for a in r.avisos))
+        self.assertEqual(len(self.proc.espelho.pendentes()), 1)
+
+    def test_espelho_refeito_depois_que_o_destino_volta(self):
+        from docauto.espelho import COPIADO, FilaEspelho
+        self.proc.espelho = FilaEspelho(self.tmp / "espelho.csv")
+        self.dropbox.write_text("nao sou uma pasta", encoding="utf-8")
+        self.resultado("das.txt")
+
+        self.dropbox.unlink()                            # Dropbox voltou
+        fila = FilaEspelho(self.tmp / "espelho.csv")
+        resultados = fila.refazer()
+        self.assertEqual([s for _, s in resultados], ["ARQUIVADO"])
+        self.assertEqual(fila.itens[0].estado, COPIADO)
+        self.assertTrue(Path(fila.itens[0].pasta_destino, fila.itens[0].nome).exists())
+        self.assertEqual(fila.pendentes(), [])
+
+
+class TestVariasEntradas(TestPipeline):
+    def test_processa_todas_as_pastas_de_entrada(self):
+        from docauto.config import entradas
+        segunda = self.tmp / "EXPRESS"
+        segunda.mkdir()
+        shutil.copy2(FIXTURES / "darf_cofins.txt", segunda / "darf_cofins.txt")
+        self.proc.cfg["pastas"]["entrada"] = [str(self.tmp / "ENTRADA"), str(segunda)]
+        self.assertEqual(len(entradas(self.proc.cfg)), 2)
+
+        resultados = self.proc.processar_pasta(hoje=HOJE)
+        origens = {Path(r.arquivo_origem).parent.name for r in resultados}
+        self.assertIn("EXPRESS", origens)
+
+    def test_pasta_de_entrada_inexistente_e_ignorada(self):
+        self.proc.cfg["pastas"]["entrada"] = [str(self.tmp / "ENTRADA"),
+                                              str(self.tmp / "NAO_EXISTE")]
+        self.assertTrue(self.proc.processar_pasta(hoje=HOJE))
+
+    def test_subpasta_enviados_nao_e_reprocessada(self):
+        enviados = self.tmp / "ENTRADA" / "_ENVIADOS"
+        enviados.mkdir()
+        shutil.copy2(FIXTURES / "das.txt", enviados / "das.txt")
+        resultados = self.proc.processar_pasta(hoje=HOJE)
+        self.assertFalse(any("_ENVIADOS" in r.arquivo_origem for r in resultados))
+
+
+class TestDiagnostico(unittest.TestCase):
+    def test_pontuar_todos_devolve_todos_os_templates(self):
+        from docauto.classify import pontuar_todos
+        templates = carregar_templates(RAIZ / "config" / "templates")
+        codigos = carregar_codigos(RAIZ / "config" / "codigos_receita.yaml")
+        cands = pontuar_todos(extrair_campos(ler("darf_pis.txt")), templates, codigos)
+        self.assertEqual(len(cands), len(templates))
+        self.assertEqual(cands[0].tipo, "PIS")
+        self.assertEqual(cands[0].relativo, 100)

@@ -4,9 +4,16 @@
 # ---------------------------------------------------------------------------
 
 pastas:
+  # Aceita um caminho ou uma LISTA de caminhos. Você pode vigiar, além da
+  # entrada do escritório, a própria pasta que o Express usa — mas leia o
+  # docs/14 antes: a ordem importa, e há um risco real de perder documento.
   entrada:            "D:/CONTABIL/ENTRADA_DOCUMENTOS"
+  # entrada:
+  #   - "D:/CONTABIL/ENTRADA_DOCUMENTOS"
+  #   - "C:/Users/SEU_USUARIO/Express"
   processados:        "D:/CONTABIL/ENTRADA_DOCUMENTOS/_PROCESSADOS"
   pendentes:          "D:/CONTABIL/PENDENTES_VALIDACAO"
+  # Usado só quando a seção `destinos` (abaixo) não existe.
   base_clientes:      "D:/CONTABIL/CLIENTES"
 
 cadastro:
@@ -22,6 +29,33 @@ processamento:
   extensoes_avisar: [".doc", ".docx"]
   ocr_habilitado: false          # Fase 2
   ocr_idioma: "por"
+
+# ---------------------------------------------------------------------------
+# DESTINOS DE ARQUIVAMENTO
+#
+# O documento é copiado para TODOS os destinos habilitados, com a mesma
+# estrutura de pastas e o mesmo nome. O `principal` é o que vale como destino
+# oficial no registro e na fila de envio.
+#
+# Falha em destino secundário (Dropbox fora do ar, rede caída) NÃO derruba o
+# documento: entra na fila de espelho e é refeita com `docauto espelhar`.
+# Falha no principal manda para pendências.
+#
+# Dropbox: aponte para a pasta LOCAL do Dropbox (a que o aplicativo sincroniza).
+# A automação copia como se fosse pasta comum; quem sincroniza é o Dropbox.
+# ---------------------------------------------------------------------------
+destinos:
+  - nome: "SERVIDOR"
+    raiz: "D:/CONTABIL/CLIENTES"
+    habilitado: true
+    principal: true
+  - nome: "DROPBOX"
+    raiz: "C:/Users/SEU_USUARIO/Dropbox/CONTABIL/CLIENTES"
+    habilitado: false          # ligue depois que o servidor estiver redondo
+    principal: false
+
+# Fila das cópias secundárias que falharam (refeitas com `docauto espelhar`).
+espelho: "data/registro/espelho.csv"
 
 estrutura:
   # Variáveis: {base_empresa} {id} {empresa} {setor} {ano} {mes} {competencia}

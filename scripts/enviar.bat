@@ -7,6 +7,7 @@ REM ---------------------------------------------------------------------------
 set RAIZ=C:\CONTABIL\docauto
 cd /d %RAIZ%
 call .venv\Scripts\activate.bat
+python -m docauto espelhar     >> "%RAIZ%\data\registro\envio.log" 2>&1
 python -m docauto enviar       >> "%RAIZ%\data\registro\envio.log" 2>&1
 python -m docauto envio-status >> "%RAIZ%\data\registro\envio.log" 2>&1
 exit /b %ERRORLEVEL%
