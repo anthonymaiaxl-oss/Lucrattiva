@@ -185,12 +185,17 @@ limpa, e com backup funcionando.
 
 ## MÊS 3 — Fase 3: Express
 
+> **Com prazo para esta semana, use [docs/11](11-express-esta-semana.md)**: o
+> envio já está implementado nos dois mecanismos possíveis e o modo `lote_manual`
+> entra em produção no dia 1, sem depender de confirmação nenhuma.
+
 **Passo 23. Com a resposta do chamado em mãos**, escolha o cenário de `docs/08`
 (A: API · B: pasta monitorada · C: lote manual).
 
-**Passo 24. Piloto com UMA empresa, por uma semana.** Preencha
-`express_monitorada` e ligue `enviar_para_express: true` para essa empresa. Confira
-todo dia: a tarefa foi vinculada? o arquivo saiu da pasta monitorada?
+**Passo 24. Piloto com UMA empresa, por uma semana.** Em `config.yaml`,
+`envio.habilitado: true` e `envio.empresas_piloto: ["0001"]`. Confira todo dia
+com `python -m docauto envio-status`: a tarefa foi vinculada? o arquivo saiu da
+pasta monitorada? Roteiro detalhado em [docs/11](11-express-esta-semana.md).
 
 **Passo 25. Estender** só depois da semana limpa.
 

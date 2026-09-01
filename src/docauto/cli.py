@@ -6,6 +6,9 @@
     python -m docauto processar
     python -m docauto estrutura --ano 2026
     python -m docauto relatorio
+    python -m docauto enviar --dry-run
+    python -m docauto enviar
+    python -m docauto envio-status
 """
 from __future__ import annotations
 
@@ -19,6 +22,7 @@ from pathlib import Path
 from .config import caminho_projeto, carregar_config
 from .confidence import AUTOMATICO, PENDENTE, REVISAO
 from .empresas import Cadastro
+from .envio import PARADO, FilaEnvio, escrever_conferencia
 from .pipeline import Processador
 from .routing import pasta_empresa
 
@@ -131,6 +135,70 @@ def cmd_relatorio(args) -> int:
     return 0
 
 
+def _fila(cfg) -> FilaEnvio:
+    return FilaEnvio(caminho_projeto(cfg, cfg.get("envio", {}).get(
+        "fila", "data/registro/envio.csv")))
+
+
+def cmd_enviar(args) -> int:
+    cfg = carregar_config(args.config)
+    envio = cfg.get("envio", {})
+    if not envio.get("habilitado"):
+        print("envio desligado (envio.habilitado: false no config) — ver docs/11")
+        return 1
+    modo = envio.get("modo", "lote_manual")
+    if modo == "pasta_monitorada" and not envio.get("pasta_monitorada"):
+        print("ERRO: modo pasta_monitorada exige envio.pasta_monitorada preenchido")
+        return 1
+
+    fila = _fila(cfg)
+    resultados = fila.enviar(envio, dry_run=args.dry_run)
+    if not resultados:
+        print("nada pendente para enviar")
+        return 0
+
+    enviados = []
+    for item, status in resultados:
+        print(f"[{status:12}] {item.nome}  {item.empresa} {item.competencia}"
+              + (f"  ({item.observacao})" if item.observacao else ""))
+        if status in ("ENVIADO", "SIMULADO"):
+            enviados.append(item)
+
+    if modo == "lote_manual" and enviados and not args.dry_run:
+        por_competencia: dict[str, list] = {}
+        for item in enviados:
+            por_competencia.setdefault(item.competencia or "SEM_COMPETENCIA", []).append(item)
+        for competencia, itens in por_competencia.items():
+            planilha = escrever_conferencia(
+                itens, Path(envio["pasta_lote"]) / competencia)
+            print(f"planilha de conferência: {planilha}")
+
+    print(f"\n{len(enviados)} documento(s) "
+          + ("simulados" if args.dry_run else f"prontos em modo {modo}"))
+    if modo == "lote_manual" and not args.dry_run:
+        print("próximo passo: abrir o Express e subir a pasta do lote")
+    return 0
+
+
+def cmd_envio_status(args) -> int:
+    cfg = carregar_config(args.config)
+    fila = _fila(cfg)
+    resumo = fila.conciliar(cfg.get("envio", {}))
+    if not fila.itens:
+        print("fila de envio vazia")
+        return 0
+    total = len(fila.itens)
+    print(f"fila de envio: {total} documento(s)")
+    for estado, qtd in sorted(resumo.items(), key=lambda x: -x[1]):
+        print(f"  {estado:12} {qtd:5}  {qtd/total:6.1%}")
+    parados = [i for i in fila.itens if i.estado == PARADO]
+    if parados:
+        print("\nPARADOS na pasta monitorada — o Express pode ter deixado de varrer:")
+        for item in parados[:20]:
+            print(f"  {item.nome}  enviado em {item.enviado_em}")
+    return 0
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser("docauto", description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -152,6 +220,14 @@ def main(argv=None) -> int:
 
     sub.add_parser("relatorio", help="resumo do que já foi processado").set_defaults(
         func=cmd_relatorio)
+
+    s = sub.add_parser("enviar", help="envia a fila ao Express (lote ou pasta monitorada)")
+    s.add_argument("--dry-run", action="store_true", help="não copia nada, só mostra")
+    s.set_defaults(func=cmd_enviar)
+
+    sub.add_parser("envio-status",
+                   help="o que já foi consumido pelo Express e o que travou").set_defaults(
+        func=cmd_envio_status)
 
     args = p.parse_args(argv)
     return args.func(args)

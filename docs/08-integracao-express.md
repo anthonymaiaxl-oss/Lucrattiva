@@ -51,8 +51,10 @@ automação classifica e nomeia
    → o que o Express não conseguir vincular, a pessoa resolve dentro do Domínio
 ```
 
-Já está implementado e desligado: em `config.yaml`, `express_monitorada` +
-`enviar_para_express: true`. Nada acontece enquanto você não preencher e ligar.
+Já está implementado: em `config.yaml`, `envio.modo: "pasta_monitorada"` +
+`envio.pasta_monitorada`. Nada acontece enquanto `envio.habilitado` for `false`.
+O roteiro de ativação, com o teste de 30 minutos, está em
+[docs/11](11-express-esta-semana.md).
 
 **Cuidados obrigatórios quando ligar:**
 - A pasta monitorada recebe **cópia**, nunca o único exemplar do arquivo.
@@ -66,9 +68,11 @@ Já está implementado e desligado: em `config.yaml`, `express_monitorada` +
 Nesta ordem, e só nesta ordem:
 
 1. **Upload manual em lote, com o trabalho pesado já feito.** A automação entrega
-   uma pasta por competência, com nomes padronizados e o que é duvidoso já
-   separado. A pessoa arrasta a pasta inteira para o Express. Isso já elimina
-   ~80% do esforço e **não tem risco nenhum**.
+   uma pasta por competência, com nomes padronizados, planilha de conferência e o
+   que é duvidoso já separado. A pessoa arrasta a pasta inteira para o Express.
+   Elimina a maior parte do esforço e **não tem risco nenhum**.
+   **Já está implementado** (`envio.modo: "lote_manual"`) e não depende de
+   confirmação nenhuma — é por onde começar mesmo que A ou B venham a existir.
 2. **Importação por planilha/arquivo**, se o Domínio aceitar algum formato de
    carga em lote — perguntas 5 e 6.
 3. **RPA (simulação de cliques)** — **última opção, e com data para acabar.** Só

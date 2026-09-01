@@ -8,9 +8,6 @@ pastas:
   processados:        "D:/CONTABIL/ENTRADA_DOCUMENTOS/_PROCESSADOS"
   pendentes:          "D:/CONTABIL/PENDENTES_VALIDACAO"
   base_clientes:      "D:/CONTABIL/CLIENTES"
-  # Pasta que o Domínio Processos Express monitora (ver docs/08).
-  # Deixe vazio enquanto a integração não estiver CONFIRMADA com a Thomson Reuters.
-  express_monitorada: ""
 
 cadastro:
   arquivo: "data/empresas.csv"
@@ -25,7 +22,6 @@ processamento:
   extensoes_avisar: [".doc", ".docx"]
   ocr_habilitado: false          # Fase 2
   ocr_idioma: "por"
-  enviar_para_express: false     # só ligue após validar a pasta monitorada
 
 estrutura:
   # Variáveis: {base_empresa} {id} {empresa} {setor} {ano} {mes} {competencia}
@@ -78,3 +74,32 @@ competencia:
 registro:
   csv:   "data/registro/registro.csv"
   jsonl: "data/registro/detalhado.jsonl"
+
+# ---------------------------------------------------------------------------
+# ENVIO PARA O DOMÍNIO PROCESSOS EXPRESS  (ver docs/11)
+#
+# Os dois modos usam a MESMA fila e as mesmas travas. Trocar de um para o
+# outro é trocar uma linha — por isso dá para operar antes de a Thomson
+# Reuters confirmar qual mecanismo existe.
+#
+#   lote_manual       monta um lote por competência, com planilha de
+#                     conferência, para a pessoa arrastar para o Express.
+#                     Funciona hoje, sem depender de nada. Comece por aqui.
+#   pasta_monitorada  copia para a pasta que o Express varre sozinho.
+#                     Só ligue depois de confirmar que o recurso existe e de
+#                     rodar o teste de 30 minutos do docs/11.
+# ---------------------------------------------------------------------------
+envio:
+  habilitado: false
+  modo: "lote_manual"                        # lote_manual | pasta_monitorada
+  pasta_lote:        "D:/CONTABIL/LOTE_EXPRESS"
+  pasta_monitorada:  ""                      # obrigatório no modo pasta_monitorada
+  fila: "data/registro/envio.csv"
+  # Vazio = todas as empresas. Comece com UMA. ["0001"]
+  empresas_piloto: []
+  # Respeite o limite de arquivos por lote do Express (pergunta 5 do docs/08).
+  limite_por_rodada: 50
+  # Enviar também os documentos ARQUIVADO_COM_REVISAO (score 65-84)?
+  incluir_revisao: true
+  # Depois de quantas horas na pasta monitorada um arquivo vira PARADO.
+  horas_para_alerta: 4

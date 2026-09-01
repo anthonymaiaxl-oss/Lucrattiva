@@ -10,7 +10,7 @@ from pathlib import Path
 CABECALHO = [
     "data_hora", "arquivo_origem", "empresa_id", "empresa", "cnpj", "tipo",
     "subtipo", "competencia", "score", "decisao", "status_arquivo", "destino",
-    "travas", "avisos",
+    "hash_documento", "envio", "travas", "avisos",
 ]
 
 
@@ -20,9 +20,27 @@ class Registro:
         self.jsonl_path = Path(jsonl_path)
         for p in (self.csv_path, self.jsonl_path):
             p.parent.mkdir(parents=True, exist_ok=True)
-        if not self.csv_path.exists():
+        if self.csv_path.exists():
+            self._conferir_cabecalho()
+        else:
             with self.csv_path.open("w", newline="", encoding="utf-8-sig") as f:
                 csv.writer(f, delimiter=";").writerow(CABECALHO)
+
+    def _conferir_cabecalho(self) -> None:
+        """Se o registro é de uma versão anterior, preserva e recomeça.
+
+        Nunca reescreve nem descarta o histórico: renomeia com data e hora e
+        abre um arquivo novo com o cabeçalho atual.
+        """
+        with self.csv_path.open(encoding="utf-8-sig") as f:
+            atual = next(csv.reader(f, delimiter=";"), [])
+        if atual == CABECALHO:
+            return
+        antigo = self.csv_path.with_name(
+            f"{self.csv_path.stem}_ate_{datetime.now():%Y%m%d-%H%M%S}{self.csv_path.suffix}")
+        self.csv_path.rename(antigo)
+        with self.csv_path.open("w", newline="", encoding="utf-8-sig") as f:
+            csv.writer(f, delimiter=";").writerow(CABECALHO)
 
     def gravar(self, resultado) -> None:
         d = asdict(resultado) if is_dataclass(resultado) else dict(resultado)

@@ -178,7 +178,6 @@ class TestPipeline(unittest.TestCase):
             "processados": str(self.tmp / "ENTRADA" / "_PROCESSADOS"),
             "pendentes": str(self.tmp / "PENDENTES"),
             "base_clientes": str(self.tmp / "CLIENTES"),
-            "express_monitorada": "",
         }
         cfg["cadastro"]["arquivo"] = "data/empresas.exemplo.csv"
         cfg["registro"] = {"csv": str(self.tmp / "reg.csv"),
@@ -245,3 +244,129 @@ class TestPipeline(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestFilaEnvio(unittest.TestCase):
+    """Fila de envio ao Express — o ponto onde um erro vira documento duplicado
+    dentro do Domínio, então é onde mais vale teste."""
+
+    def setUp(self):
+        from docauto.envio import FilaEnvio
+        self.tmp = Path(tempfile.mkdtemp())
+        self.origem = self.tmp / "2026-08_DAS_EXEMPLO.pdf"
+        self.origem.write_text("guia", encoding="utf-8")
+        self.fila = FilaEnvio(self.tmp / "envio.csv")
+        self.cfg = {"modo": "lote_manual", "pasta_lote": str(self.tmp / "LOTE"),
+                    "limite_por_rodada": 50, "horas_para_alerta": 4}
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def item(self, hash_doc="abc", empresa="0001"):
+        from docauto.envio import Item
+        return Item(hash=hash_doc, arquivo=str(self.origem), nome=self.origem.name,
+                    empresa_id=empresa, empresa="EMPRESA EXEMPLO", tipo="DAS",
+                    competencia="2026-08", decisao=AUTOMATICO)
+
+    def test_mesmo_documento_nao_entra_duas_vezes(self):
+        self.assertEqual(self.fila.enfileirar(self.item()), "ENFILEIRADO")
+        self.assertTrue(self.fila.enfileirar(self.item()).startswith("JA_NA_FILA"))
+        self.assertEqual(len(self.fila.itens), 1)
+
+    def test_filtro_de_empresa_piloto(self):
+        self.fila.enfileirar(self.item("a", "0001"))
+        self.fila.enfileirar(self.item("b", "0002"))
+        self.assertEqual(len(self.fila.pendentes(["0001"])), 1)
+
+    def test_limite_por_rodada(self):
+        for i in range(5):
+            self.fila.enfileirar(self.item(f"h{i}"))
+        self.assertEqual(len(self.fila.pendentes(limite=2)), 2)
+
+    def test_lote_manual_separa_por_competencia(self):
+        self.fila.enfileirar(self.item())
+        self.fila.enviar(self.cfg)
+        self.assertTrue((self.tmp / "LOTE" / "2026-08" / self.origem.name).exists())
+
+    def test_dry_run_nao_copia_nem_muda_estado(self):
+        from docauto.envio import PENDENTE
+        self.fila.enfileirar(self.item())
+        self.fila.enviar(self.cfg, dry_run=True)
+        self.assertFalse((self.tmp / "LOTE").exists())
+        self.assertEqual(self.fila.itens[0].estado, PENDENTE)
+
+    def test_enviado_nao_e_reenviado(self):
+        self.fila.enviar(self.cfg)
+        self.fila.enfileirar(self.item())
+        self.fila.enviar(self.cfg)
+        self.assertEqual(len(self.fila.enviar(self.cfg)), 0)
+
+    def test_arquivo_sumido_do_servidor_bloqueia(self):
+        from docauto.envio import BLOQUEADO
+        self.fila.enfileirar(self.item())
+        self.origem.unlink()
+        self.fila.enviar(self.cfg)
+        self.assertEqual(self.fila.itens[0].estado, BLOQUEADO)
+
+    def test_conciliacao_marca_consumido_e_parado(self):
+        from datetime import datetime, timedelta
+
+        from docauto.envio import CONSUMIDO, PARADO
+        cfg = {"modo": "pasta_monitorada",
+               "pasta_monitorada": str(self.tmp / "UPLOAD"), "horas_para_alerta": 4}
+        self.fila.enfileirar(self.item("a"))
+        self.fila.enfileirar(self.item("b"))
+        self.fila.itens[1].nome = "outro.pdf"
+        self.fila.enviar(cfg)
+
+        Path(self.fila.itens[0].destino_envio).unlink()      # Express consumiu
+        self.fila.itens[1].enviado_em = (
+            datetime.now() - timedelta(hours=9)).isoformat(timespec="seconds")
+        self.fila.conciliar(cfg)
+
+        self.assertEqual(self.fila.itens[0].estado, CONSUMIDO)
+        self.assertEqual(self.fila.itens[1].estado, PARADO)
+
+    def test_reenfileirar(self):
+        from docauto.envio import PENDENTE
+        self.fila.enfileirar(self.item())
+        self.fila.enviar(self.cfg)
+        self.assertTrue(self.fila.reenfileirar("abc"))
+        self.assertEqual(self.fila.itens[0].estado, PENDENTE)
+
+
+class TestEnvioNoPipeline(TestPipeline):
+    """Herda o cenário do pipeline e liga o envio."""
+
+    def setUp(self):
+        super().setUp()
+        self.proc.cfg["envio"] = {
+            "habilitado": True, "modo": "lote_manual",
+            "pasta_lote": str(self.tmp / "LOTE"), "fila": str(self.tmp / "envio.csv"),
+            "empresas_piloto": [], "limite_por_rodada": 50, "incluir_revisao": True,
+            "horas_para_alerta": 4}
+        from docauto.envio import FilaEnvio
+        self.proc.fila = FilaEnvio(self.tmp / "envio.csv")
+
+    def test_pendencia_nunca_entra_na_fila_do_express(self):
+        self.resultado("darf_ambiguo.txt")
+        self.resultado("darf_empresa_desconhecida.txt")
+        self.assertEqual(self.proc.fila.itens, [])
+
+    def test_arquivado_entra_na_fila_uma_vez_so(self):
+        self.resultado("das.txt")
+        self.resultado("das.txt")
+        self.assertEqual(len(self.proc.fila.itens), 1)
+        self.assertEqual(self.proc.fila.itens[0].tipo, "DAS")
+
+    def test_fora_do_piloto_nao_e_enfileirado(self):
+        self.proc.cfg["envio"]["empresas_piloto"] = ["0002"]
+        r = self.resultado("das.txt")            # empresa 0001
+        self.assertEqual(r.envio, "NAO_ENVIADO:fora_do_piloto")
+        self.assertEqual(self.proc.fila.itens, [])
+
+    def test_envio_desligado_nao_enfileira(self):
+        self.proc.cfg["envio"]["habilitado"] = False
+        r = self.resultado("das.txt")
+        self.assertEqual(r.envio, "")
+        self.assertEqual(self.proc.fila.itens, [])

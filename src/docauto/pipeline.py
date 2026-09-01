@@ -7,11 +7,12 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
 
-from . import archive, routing, textio
+from . import archive, envio, routing, textio
 from .classify import classificar
 from .confidence import AUTOMATICO, PENDENTE, REVISAO, avaliar
 from .config import caminho_projeto, carregar_config
 from .empresas import Cadastro
+from .envio import FilaEnvio, Item
 from .ledger import Registro
 from .normalize import extrair_campos, formatar_cnpj
 from .templates import carregar_codigos, carregar_templates
@@ -31,6 +32,8 @@ class Resultado:
     decisao: str = PENDENTE
     status_arquivo: str = ""
     destino: str = ""
+    hash_documento: str = ""
+    envio: str = ""
     travas: list[str] = field(default_factory=list)
     avisos: list[str] = field(default_factory=list)
     motivos_classificacao: list[str] = field(default_factory=list)
@@ -50,6 +53,8 @@ class Processador:
         self.registro = Registro(
             caminho_projeto(self.cfg, self.cfg["registro"]["csv"]),
             caminho_projeto(self.cfg, self.cfg["registro"]["jsonl"]))
+        self.fila = FilaEnvio(caminho_projeto(
+            self.cfg, self.cfg.get("envio", {}).get("fila", "data/registro/envio.csv")))
 
     # ------------------------------------------------------------------ #
 
@@ -128,15 +133,33 @@ class Processador:
                 r.travas.append("CAMINHO_MUITO_LONGO: encurtar nome da pasta da empresa")
             else:
                 r.status_arquivo, r.destino = archive.arquivar(caminho, destino, nome, dry_run)
-                if self.cfg["processamento"].get("enviar_para_express") and \
-                        self.cfg["pastas"].get("express_monitorada"):
-                    archive.arquivar(caminho, self.cfg["pastas"]["express_monitorada"],
-                                     nome, dry_run)
-                    r.avisos.append("copiado para a pasta monitorada do Express")
+                r.hash_documento = archive.sha256(caminho)
+                if not dry_run:
+                    r.envio = self._enfileirar_envio(r, resolucao.empresa, nome)
 
         return self._finalizar(r, caminho, ex, dry_run)
 
     # ------------------------------------------------------------------ #
+
+    def _enfileirar_envio(self, r: Resultado, empresa, nome: str) -> str:
+        """Coloca o documento arquivado na fila do Express.
+
+        Só entra o que foi efetivamente arquivado. Documento em pendência nunca
+        é enviado — o Express receberia um documento que o próprio escritório
+        ainda não confirmou de quem é.
+        """
+        cfg_envio = self.cfg.get("envio", {})
+        if not cfg_envio.get("habilitado"):
+            return ""
+        if r.decisao == REVISAO and not cfg_envio.get("incluir_revisao", True):
+            return "NAO_ENVIADO:apenas_automatico"
+        piloto = [str(e) for e in cfg_envio.get("empresas_piloto", []) if str(e).strip()]
+        if piloto and r.empresa_id not in piloto:
+            return "NAO_ENVIADO:fora_do_piloto"
+        return self.fila.enfileirar(Item(
+            hash=r.hash_documento, arquivo=r.destino, nome=nome,
+            empresa_id=r.empresa_id, empresa=r.empresa, cnpj=r.cnpj,
+            tipo=r.tipo, competencia=r.competencia, decisao=r.decisao))
 
     def _campos_faltando(self, cls, ex) -> list[str]:
         template = self.templates.get(cls.tipo)
