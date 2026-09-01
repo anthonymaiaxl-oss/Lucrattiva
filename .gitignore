@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+*.log
+
+# Dados reais do escritório nunca entram no repositório
+data/empresas.csv
+data/registro/
+ENTRADA_DOCUMENTOS/
+PENDENTES_VALIDACAO/
+saida/
+*.pdf
+!tests/fixtures/*.pdf

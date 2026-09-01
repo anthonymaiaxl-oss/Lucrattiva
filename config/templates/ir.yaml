@@ -1,0 +1,51 @@
+id: IR
+nome: "IR - Imposto de Renda (IRPJ / IRRF)"
+setor: FISCAL
+grupo: GUIAS
+precedencia: 50
+# O subtipo (IRPJ presumido, estimativa, IRRF assalariado, IRRF serviços PJ...)
+# é resolvido pelo código de receita — ver config/codigos_receita.yaml.
+# Sem código legível, o documento fica como IR/SUBTIPO_INDEFINIDO e vai para
+# validação, porque IRPJ e IRRF têm destinos e responsáveis diferentes.
+exige_subtipo: true
+
+palavras_chave_principais:
+  - termo: "IMPOSTO SOBRE A RENDA"
+    peso: 40
+  - termo: "IMPOSTO DE RENDA"
+    peso: 40
+  - termo: "IRPJ"
+    peso: 40
+    caixa_alta: true
+  - termo: "IRRF"
+    peso: 40
+    caixa_alta: true
+  - termo: "IR"
+    peso: 18
+    caixa_alta: true
+
+palavras_chave_secundarias:
+  - "DOCUMENTO DE ARRECADACAO DE RECEITAS FEDERAIS"
+  - "DARF"
+  - "CODIGO DA RECEITA"
+  - "LUCRO PRESUMIDO"
+  - "LUCRO REAL"
+  - "ESTIMATIVA"
+  - "RETIDO NA FONTE"
+  - "PERIODO DE APURACAO"
+
+anti_termos:
+  - "CONTRIBUICAO SOCIAL SOBRE O LUCRO"
+  - "COFINS"
+  - "PIS/PASEP"
+
+campos_obrigatorios: [cnpj, competencia, valor, codigo_receita]
+campos_opcionais: [vencimento, razao_social]
+
+criterios_confiavel: >
+  Código de receita mapeado como IR e subtipo definido (IRPJ x IRRF),
+  CNPJ válido e cadastrado, competência de campo explícito ou apuração.
+criterios_validacao_manual: >
+  Documento de IR sem código de receita legível; código presente mas fora da
+  tabela; IRPJ e CSLL na mesma guia sem separação clara; informe de rendimentos
+  (não é guia — vai para DECLARACOES, não GUIAS).

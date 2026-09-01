@@ -1,0 +1,14 @@
+# Núcleo (obrigatório)
+PyYAML>=6.0
+
+# Leitura de PDF (escolha uma; pypdf é o mais leve)
+pypdf>=4.0
+# pdfplumber>=0.11        # alternativa, extração mais fiel de layout
+
+# Planilhas
+openpyxl>=3.1
+
+# OCR — só necessário na Fase 2 (PDF imagem/escaneado)
+# pytesseract>=0.3.10
+# pdf2image>=1.17
+# Requer também os binários: tesseract-ocr (+ pacote de idioma por) e poppler

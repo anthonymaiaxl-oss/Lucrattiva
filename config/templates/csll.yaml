@@ -1,0 +1,39 @@
+id: CSLL
+nome: "CSLL - Contribuição Social sobre o Lucro Líquido"
+setor: FISCAL
+grupo: GUIAS
+precedencia: 50
+
+palavras_chave_principais:
+  - termo: "CONTRIBUICAO SOCIAL SOBRE O LUCRO LIQUIDO"
+    peso: 45
+  - termo: "CONTRIBUICAO SOCIAL SOBRE O LUCRO"
+    peso: 42
+  - termo: "CSLL"
+    peso: 40
+    caixa_alta: true
+
+palavras_chave_secundarias:
+  - "DOCUMENTO DE ARRECADACAO DE RECEITAS FEDERAIS"
+  - "DARF"
+  - "CODIGO DA RECEITA"
+  - "LUCRO PRESUMIDO"
+  - "LUCRO REAL"
+  - "ESTIMATIVA"
+  - "PERIODO DE APURACAO"
+
+anti_termos:
+  - "IMPOSTO SOBRE A RENDA"
+  - "COFINS"
+  - "PIS/PASEP"
+
+campos_obrigatorios: [cnpj, competencia, valor]
+campos_opcionais: [vencimento, codigo_receita, razao_social]
+
+criterios_confiavel: >
+  Código de receita mapeado como CSLL (2372/2484/6012/5987) OU termo principal
+  de CSLL isolado, com CNPJ válido e cadastrado e competência identificada.
+criterios_validacao_manual: >
+  IRPJ e CSLL citados na mesma guia sem código legível (é o caso mais comum
+  de erro); código 5952 (retenção conjunta); apuração trimestral cuja
+  competência precisa ser confirmada (03, 06, 09, 12).

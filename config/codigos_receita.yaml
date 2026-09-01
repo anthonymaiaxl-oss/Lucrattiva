@@ -1,0 +1,57 @@
+# ---------------------------------------------------------------------------
+# TABELA DE CÓDIGOS DE RECEITA (DARF) — FONTE ÚNICA DA VERDADE
+#
+# ATENÇÃO: esta tabela vem de uso corrente de mercado e NÃO foi conferida
+# contra a tabela oficial da Receita Federal. Códigos mudam, são extintos e
+# criados. ANTES DE LIGAR O ARQUIVAMENTO AUTOMÁTICO:
+#
+#   1. Abrir a "Tabela de Códigos de Receita" vigente (Agenda Tributária /
+#      Sicalc / manual do DARF) e conferir linha a linha os códigos usados
+#      pela sua carteira de clientes;
+#   2. Remover o que não usar (menos código = menos chance de erro);
+#   3. Preencher _meta.conferido_em e _meta.conferido_por;
+#   4. Só então mudar _meta.status para CONFERIDO.
+#
+# Enquanto status != CONFERIDO, o classificador continua usando os códigos,
+# porém registra o aviso "TABELA_CODIGOS_NAO_CONFERIDA" em todo documento
+# classificado por código — de propósito, para você não esquecer.
+# ---------------------------------------------------------------------------
+_meta:
+  status: NAO_CONFERIDA
+  conferido_em: null
+  conferido_por: null
+
+codigos:
+  # ----- PIS/PASEP -----
+  "8109": { tributo: PIS,    subtipo: FATURAMENTO_CUMULATIVO,  descricao: "PIS/PASEP - Faturamento" }
+  "6912": { tributo: PIS,    subtipo: NAO_CUMULATIVO,          descricao: "PIS/PASEP - Não cumulativo" }
+  "8301": { tributo: PIS,    subtipo: FOLHA_SALARIOS,          descricao: "PIS/PASEP - Folha de salários" }
+  "5979": { tributo: PIS,    subtipo: RETIDO_FONTE,            descricao: "PIS/PASEP retido na fonte" }
+
+  # ----- COFINS -----
+  "2172": { tributo: COFINS, subtipo: FATURAMENTO_CUMULATIVO,  descricao: "COFINS - Faturamento" }
+  "5856": { tributo: COFINS, subtipo: NAO_CUMULATIVO,          descricao: "COFINS - Não cumulativa" }
+  "5960": { tributo: COFINS, subtipo: RETIDO_FONTE,            descricao: "COFINS retida na fonte" }
+
+  # ----- IRPJ -----
+  "2089": { tributo: IR,     subtipo: IRPJ_LUCRO_PRESUMIDO,    descricao: "IRPJ - Lucro Presumido" }
+  "2362": { tributo: IR,     subtipo: IRPJ_ESTIMATIVA,         descricao: "IRPJ - Estimativa mensal" }
+  "0220": { tributo: IR,     subtipo: IRPJ_SIMPLIFICADO,       descricao: "IRPJ - demais pessoas jurídicas" }
+  "5625": { tributo: IR,     subtipo: IRPJ_LUCRO_ARBITRADO,    descricao: "IRPJ - Lucro Arbitrado" }
+
+  # ----- IRRF (retenções) -----
+  "0561": { tributo: IR,     subtipo: IRRF_TRABALHO_ASSALARIADO, descricao: "IRRF - Rendimentos do trabalho assalariado" }
+  "0588": { tributo: IR,     subtipo: IRRF_SEM_VINCULO,          descricao: "IRRF - Trabalho sem vínculo empregatício" }
+  "1708": { tributo: IR,     subtipo: IRRF_SERVICOS_PJ,          descricao: "IRRF - Serviços prestados por PJ" }
+  "3208": { tributo: IR,     subtipo: IRRF_ALUGUEIS,             descricao: "IRRF - Aluguéis e royalties (PF)" }
+
+  # ----- CSLL -----
+  "2372": { tributo: CSLL,   subtipo: CSLL_LUCRO_PRESUMIDO,    descricao: "CSLL - Lucro Presumido" }
+  "2484": { tributo: CSLL,   subtipo: CSLL_ESTIMATIVA,         descricao: "CSLL - Estimativa mensal" }
+  "6012": { tributo: CSLL,   subtipo: CSLL_LUCRO_REAL,         descricao: "CSLL - Lucro Real trimestral" }
+  "5987": { tributo: CSLL,   subtipo: CSLL_RETIDA,             descricao: "CSLL retida na fonte" }
+
+  # ----- Retenção conjunta (ambíguo por natureza) -----
+  # Um único DARF cobre CSLL + COFINS + PIS. NUNCA classificar como um
+  # tributo só: o classificador força NECESSITA_VALIDACAO / RETENCAO_CONJUNTA.
+  "5952": { tributo: RETENCAO_CONJUNTA, subtipo: CSLL_COFINS_PIS, descricao: "CSLL/COFINS/PIS-PASEP retidos na fonte" }

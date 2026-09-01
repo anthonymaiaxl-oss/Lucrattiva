@@ -1,0 +1,43 @@
+id: DAS
+nome: "DAS - Documento de Arrecadação do Simples Nacional"
+setor: FISCAL
+grupo: GUIAS
+# Precedência alta: o DAS CONTÉM PIS, COFINS, IRPJ, CSLL, CPP e ICMS na sua
+# composição. Sem esta regra, todo DAS seria classificado como ambíguo.
+precedencia: 100
+suprime: [PIS, COFINS, IR, CSLL]
+
+palavras_chave_principais:
+  - termo: "DOCUMENTO DE ARRECADACAO DO SIMPLES NACIONAL"
+    peso: 45
+  - termo: "SIMPLES NACIONAL"
+    peso: 35
+  - termo: "PGDAS-D"
+    peso: 35
+  - termo: "DAS"
+    peso: 25
+    caixa_alta: true      # evita casar com a preposição "das"
+
+palavras_chave_secundarias:
+  - "COMPOSICAO DO DOCUMENTO DE ARRECADACAO"
+  - "PERIODO DE APURACAO"
+  - "NUMERO DO DOCUMENTO"
+  - "CNPJ MATRIZ"
+  - "RECEITA BRUTA"
+  - "CPP"
+  - "PAGAR ATE"
+
+anti_termos:
+  - "DOCUMENTO DE ARRECADACAO DE RECEITAS FEDERAIS"   # isso é DARF, não DAS
+
+campos_obrigatorios: [cnpj, competencia]
+campos_opcionais: [valor, vencimento, razao_social, numero_documento]
+
+# Documentação viva — lida por humano, não pelo código:
+criterios_confiavel: >
+  CNPJ válido e cadastrado + termo principal do Simples Nacional +
+  competência vinda de "Período de Apuração" ou "Competência".
+criterios_validacao_manual: >
+  CNPJ ausente/inválido; competência não localizada; documento com marcas
+  de DARF junto com Simples Nacional (pode ser guia avulsa ou parcelamento);
+  valor total não localizado.

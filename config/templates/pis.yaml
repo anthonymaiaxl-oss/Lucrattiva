@@ -1,0 +1,46 @@
+id: PIS
+nome: "PIS/PASEP"
+setor: FISCAL
+grupo: GUIAS
+precedencia: 50
+
+palavras_chave_principais:
+  - termo: "PIS/PASEP"
+    peso: 40
+  - termo: "PIS-PASEP"
+    peso: 40
+  - termo: "PROGRAMA DE INTEGRACAO SOCIAL"
+    peso: 40
+  - termo: "CONTRIBUICAO PARA O PIS"
+    peso: 40
+  - termo: "PIS"
+    peso: 28
+    caixa_alta: true
+
+palavras_chave_secundarias:
+  - "DOCUMENTO DE ARRECADACAO DE RECEITAS FEDERAIS"
+  - "DARF"
+  - "CODIGO DA RECEITA"
+  - "PERIODO DE APURACAO"
+  - "FATURAMENTO"
+  - "NAO CUMULATIVO"
+  - "FOLHA DE SALARIOS"
+
+# Termos que indicam OUTRO tributo. Não zeram o template (um DARF pode citar
+# o outro em quadro de composição), mas puxam o score para baixo e ajudam a
+# disparar o desempate por código de receita.
+anti_termos:
+  - "COFINS"
+  - "CONTRIBUICAO SOCIAL SOBRE O LUCRO"
+
+campos_obrigatorios: [cnpj, competencia, valor]
+campos_opcionais: [vencimento, codigo_receita, razao_social]
+
+criterios_confiavel: >
+  Código de receita mapeado como PIS (8109/6912/8301/5979) OU termo principal
+  de PIS sem presença relevante de COFINS, somado a CNPJ válido e cadastrado
+  e competência de campo explícito ou período de apuração.
+criterios_validacao_manual: >
+  PIS e COFINS citados com força parecida e sem código de receita legível;
+  código 5952 (retenção conjunta); código não constante da tabela;
+  competência apenas dedutível da data de vencimento.

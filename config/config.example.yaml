@@ -1,0 +1,80 @@
+# ---------------------------------------------------------------------------
+# Configuração da automação documental (copie para config/config.yaml)
+# Tudo que é específico do seu escritório fica AQUI. Código não se altera.
+# ---------------------------------------------------------------------------
+
+pastas:
+  entrada:            "D:/CONTABIL/ENTRADA_DOCUMENTOS"
+  processados:        "D:/CONTABIL/ENTRADA_DOCUMENTOS/_PROCESSADOS"
+  pendentes:          "D:/CONTABIL/PENDENTES_VALIDACAO"
+  base_clientes:      "D:/CONTABIL/CLIENTES"
+  # Pasta que o Domínio Processos Express monitora (ver docs/08).
+  # Deixe vazio enquanto a integração não estiver CONFIRMADA com a Thomson Reuters.
+  express_monitorada: ""
+
+cadastro:
+  arquivo: "data/empresas.csv"
+  # Aceita ; ou , — detectado automaticamente.
+
+processamento:
+  # copiar  = mantém o original na entrada (recomendado nos primeiros 60 dias)
+  # mover   = move o original para pastas.processados
+  modo_original: "copiar"
+  extensoes: [".pdf", ".xls", ".xlsx", ".txt", ".png", ".jpg", ".jpeg"]
+  # Word não é lido pelo Express; a automação avisa e manda para pendentes.
+  extensoes_avisar: [".doc", ".docx"]
+  ocr_habilitado: false          # Fase 2
+  ocr_idioma: "por"
+  enviar_para_express: false     # só ligue após validar a pasta monitorada
+
+estrutura:
+  # Variáveis: {base_empresa} {id} {empresa} {setor} {ano} {mes} {competencia}
+  #            {grupo} {tipo} {mes_extenso}
+  caminho: "{base_empresa}/{setor}/{ano}/{competencia}/{grupo}"
+  # Se true, cria uma subpasta por tributo (ex.: .../GUIAS/PIS).
+  # Recomendado FALSE: o tributo já está no nome do arquivo e isso evita
+  # milhares de pastas vazias. Ver docs/04.
+  subpasta_por_tributo: false
+  # Nome do arquivo. Variáveis: {competencia} {tipo} {empresa_curta} {seq}
+  nome_arquivo: "{competencia}_{tipo}_{empresa_curta}"
+  limite_caminho: 240            # guarda contra o limite de 260 do Windows
+
+confianca:
+  # Ver docs/07. Pontos por evidência.
+  pontos:
+    cnpj_valido_cadastrado: 35
+    cnpj_valido_nao_cadastrado: 5
+    razao_social_forte: 25       # similaridade >= limiar_forte
+    razao_social_fraca: 12       # entre limiar_fraco e limiar_forte
+    nome_fantasia: 15
+    pasta_origem: 8
+    tipo_documento_max: 30       # proporcional ao score do template
+    competencia_explicita: 20
+    competencia_apuracao: 16
+    competencia_inferida: 8
+    valor_encontrado: 6
+    vencimento_coerente: 4
+  penalidades:
+    texto_por_ocr: 0.85          # multiplicador aplicado ao total
+    texto_curto: 0.70            # menos de 200 caracteres extraídos
+  faixas:
+    automatico: 85               # >= 85 arquiva sozinho (se nenhuma trava)
+    revisao: 65                  # 65..84 arquiva e marca para conferência
+    # < 65 => PENDENTE_VALIDACAO
+
+empresas:
+  similaridade_forte: 0.90
+  similaridade_fraca: 0.82
+
+classificacao:
+  score_minimo_tipo: 35          # abaixo disso => DOCUMENTO_DESCONHECIDO
+  margem_desempate: 15           # top1 - top2 menor que isso => NECESSITA_VALIDACAO
+
+competencia:
+  # Nenhuma competência anterior/posterior a estes limites é aceita sem revisão.
+  meses_passado_max: 60
+  meses_futuro_max: 2
+
+registro:
+  csv:   "data/registro/registro.csv"
+  jsonl: "data/registro/detalhado.jsonl"

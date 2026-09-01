@@ -1,0 +1,36 @@
+id: COFINS
+nome: "COFINS"
+setor: FISCAL
+grupo: GUIAS
+precedencia: 50
+
+palavras_chave_principais:
+  - termo: "COFINS"
+    peso: 40
+  - termo: "CONTRIBUICAO PARA O FINANCIAMENTO DA SEGURIDADE SOCIAL"
+    peso: 45
+  - termo: "FINANCIAMENTO DA SEGURIDADE SOCIAL"
+    peso: 40
+
+palavras_chave_secundarias:
+  - "DOCUMENTO DE ARRECADACAO DE RECEITAS FEDERAIS"
+  - "DARF"
+  - "CODIGO DA RECEITA"
+  - "PERIODO DE APURACAO"
+  - "FATURAMENTO"
+  - "NAO CUMULATIVA"
+
+anti_termos:
+  - "PIS/PASEP"
+  - "PROGRAMA DE INTEGRACAO SOCIAL"
+  - "CONTRIBUICAO SOCIAL SOBRE O LUCRO"
+
+campos_obrigatorios: [cnpj, competencia, valor]
+campos_opcionais: [vencimento, codigo_receita, razao_social]
+
+criterios_confiavel: >
+  Código de receita mapeado como COFINS (2172/5856/5960) OU termo principal
+  de COFINS isolado, com CNPJ válido e cadastrado e competência identificada.
+criterios_validacao_manual: >
+  PIS e COFINS na mesma guia sem código legível; código 5952;
+  guia de parcelamento (código diferente do da tabela).
