@@ -274,6 +274,7 @@ precisa mexer em código.
 | `palavras_chave_secundarias` | +5 cada, teto +15 |
 | `anti_termos` | Termos de OUTRO tributo; puxam o score para baixo |
 | `campos_obrigatorios` | Sem eles vai para pendência mesmo com score alto |
+| `sempre_validar` | Tipo reconhecido que **nunca** é arquivado sozinho (ex.: DAS de parcelamento) |
 | `criterios_confiavel` / `criterios_validacao_manual` | Documentação para humano |
 
 Os **códigos de receita ficam num arquivo só** (`config/codigos_receita.yaml`):
@@ -300,6 +301,13 @@ Obrigatórios: CNPJ, competência, valor.
 alta (40), "IR" caixa alta (18 — sigla curta demais). Códigos IRPJ: 2089, 2362,
 0220, 5625; IRRF: 0561, 0588, 1708, 3208. **`exige_subtipo: true`** — sem código
 legível não se separa IRPJ de IRRF, e vai para validação mesmo com score alto.
+
+**DAS_PARCELAMENTO** — trava de segurança, não template de arquivamento. Uma
+parcela é um DAS, casa com o template do DAS, **mas a tarefa no Processos é
+outra**. Reconhecido por "parcelamento", "número da parcela", "multa"/"juros",
+tem `precedencia: 110`, `suprime: [DAS]` e `sempre_validar: true` — vai para
+validação mesmo com score 100. Se o escritório não tiver cliente em
+parcelamento, nunca dispara; e protege no dia em que tiver.
 
 **CSLL** — principais: CONTRIBUIÇÃO SOCIAL SOBRE O LUCRO LÍQUIDO (45), CSLL
 caixa alta (40). Anti-termos: IMPOSTO SOBRE A RENDA, COFINS, PIS. Códigos: 2372,

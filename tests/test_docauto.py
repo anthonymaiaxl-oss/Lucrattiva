@@ -694,7 +694,7 @@ class TestConferenciaOnvio(unittest.TestCase):
         conf = conferir_tarefas(ler_planilha(self.ONVIO / "tarefas_onvio.csv"),
                                 self.templates)
         self.assertEqual(conf.por_template, {"DAS": 1, "PIS": 1, "COFINS": 1})
-        self.assertEqual(conf.templates_sem_tarefa, ["CSLL", "IR"])
+        self.assertEqual(conf.templates_sem_tarefa, ["CSLL", "DAS_PARCELAMENTO", "IR"])
         self.assertIn("Folha de pagamento", conf.sem_template)
 
     def test_gera_cadastro_valido_a_partir_da_exportacao(self):
@@ -830,9 +830,17 @@ class TestPrioridade(unittest.TestCase):
         # carteira quase toda Simples, mas o Onvio só tem tarefa de PIS/COFINS/DAS
         p = calcular(self.cadastro_falso(["SIMPLES NACIONAL"] * 10), self.templates,
                      tarefas)
-        sem_tarefa = [l for l in p.linhas if l.tarefas_onvio == 0]
+        sem_tarefa = [l for l in p.linhas if l.tarefas_onvio == 0 and not l.trava]
         self.assertTrue(all("não encontrada" in l.nota for l in sem_tarefa))
         self.assertGreater(len([l for l in p.linhas if l.tarefas_onvio]), 0)
+
+    def test_trava_de_seguranca_nao_disputa_prioridade(self):
+        from docauto.prioridade import calcular
+        p = calcular(self.cadastro_falso(["SIMPLES NACIONAL"] * 5), self.templates)
+        travas = [l for l in p.linhas if l.trava]
+        self.assertEqual([l.tipo for l in travas], ["DAS_PARCELAMENTO"])
+        self.assertIs(p.linhas[-1].trava, True)          # vai para o fim da lista
+        self.assertIn("trava de segurança", p.linhas[-1].nota)
 
     def test_regimes_escritos_de_formas_diferentes(self):
         from docauto.prioridade import classificar_regime
@@ -841,3 +849,48 @@ class TestPrioridade(unittest.TestCase):
         self.assertEqual(classificar_regime("lucro real"), "REAL")
         self.assertEqual(classificar_regime("MEI"), "MEI")
         self.assertIsNone(classificar_regime("a definir"))
+
+
+class TestDasParcelamento(unittest.TestCase):
+    """Parcelamento é um DAS que pertence a OUTRA tarefa. Vincular na tarefa do
+    DAS mensal é erro silencioso — o tipo de erro mais caro do projeto."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.templates = carregar_templates(RAIZ / "config" / "templates")
+        cls.codigos = carregar_codigos(RAIZ / "config" / "codigos_receita.yaml")
+
+    def classificar(self, texto):
+        return classificar(extrair_campos(texto), self.templates, self.codigos)
+
+    DAS_MENSAL = ("SIMPLES NACIONAL\nDOCUMENTO DE ARRECADACAO DO SIMPLES NACIONAL - DAS\n"
+                  "PGDAS-D\nCNPJ MATRIZ: 11.222.333/0001-81\n"
+                  "PERIODO DE APURACAO: 08/2026\n"
+                  "COMPOSICAO DO DOCUMENTO DE ARRECADACAO\nCPP 800,00\n"
+                  "VALOR TOTAL DO DOCUMENTO: 2.500,00")
+
+    PARCELA = ("SIMPLES NACIONAL\nDOCUMENTO DE ARRECADACAO DO SIMPLES NACIONAL - DAS\n"
+               "PARCELAMENTO DO SIMPLES NACIONAL\nCNPJ: 11.222.333/0001-81\n"
+               "NUMERO DO PARCELAMENTO: 000123456\nNUMERO DA PARCELA: 7/60\n"
+               "PERIODO DE APURACAO: 08/2026\n"
+               "PRINCIPAL 1.000,00 MULTA 200,00 JUROS 150,00\n"
+               "VALOR TOTAL DO DOCUMENTO: 1.350,00")
+
+    def test_parcela_nao_e_classificada_como_das_mensal(self):
+        c = self.classificar(self.PARCELA)
+        self.assertEqual(c.tipo, "DAS_PARCELAMENTO")
+
+    def test_parcela_nunca_e_arquivada_sozinha(self):
+        c = self.classificar(self.PARCELA)
+        self.assertTrue(c.ambiguo)
+        self.assertTrue(any("nunca é arquivado automaticamente" in m for m in c.motivos))
+
+    def test_das_mensal_continua_automatico(self):
+        c = self.classificar(self.DAS_MENSAL)
+        self.assertEqual(c.tipo, "DAS")
+        self.assertFalse(c.ambiguo)
+
+    def test_flag_sempre_validar_e_generica(self):
+        """Serve para qualquer tipo que não deva ser arquivado sozinho."""
+        self.assertTrue(self.templates["DAS_PARCELAMENTO"].sempre_validar)
+        self.assertFalse(self.templates["DAS"].sempre_validar)

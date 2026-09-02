@@ -97,7 +97,7 @@ candidatos e as sugestões de empresa — é o painel de exceções da Fase 1.
 python -m unittest discover -s tests -t .
 ```
 
-108 testes cobrindo dígito verificador de CNPJ, prioridade da competência
+113 testes cobrindo dígito verificador de CNPJ, prioridade da competência
 (vencimento nunca vira competência), PIS × COFINS, supressão do DAS, retenção
 conjunta, sanitização de nome no Windows, não sobrescrita, detecção de duplicado e a fila
 de envio (idempotência, piloto, limite, conciliação, bloqueio) e o fechamento

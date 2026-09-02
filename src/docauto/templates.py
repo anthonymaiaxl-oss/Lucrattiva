@@ -28,6 +28,7 @@ class Template:
     grupo: str = "GUIAS"
     precedencia: int = 50
     exige_subtipo: bool = False
+    sempre_validar: bool = False
     suprime: list[str] = field(default_factory=list)
     principais: list[TermoChave] = field(default_factory=list)
     secundarias: list[str] = field(default_factory=list)
@@ -56,6 +57,7 @@ def carregar_templates(pasta: str | Path) -> dict[str, Template]:
             grupo=d.get("grupo", "GUIAS"),
             precedencia=int(d.get("precedencia", 50)),
             exige_subtipo=bool(d.get("exige_subtipo", False)),
+            sempre_validar=bool(d.get("sempre_validar", False)),
             suprime=list(d.get("suprime", [])),
             principais=[_termo(i) for i in d.get("palavras_chave_principais", [])],
             secundarias=[str(i) for i in d.get("palavras_chave_secundarias", [])],

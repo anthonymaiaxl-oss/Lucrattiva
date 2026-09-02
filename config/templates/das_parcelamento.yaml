@@ -1,0 +1,44 @@
+id: DAS_PARCELAMENTO
+nome: "DAS de parcelamento do Simples Nacional"
+setor: FISCAL
+grupo: GUIAS
+# Vence o DAS mensal quando seus marcadores aparecem: é um DAS, casa com o
+# template do DAS, mas a TAREFA no Processos é outra. Sem esta separação, uma
+# parcela seria vinculada na tarefa do DAS do mês — erro silencioso e caro.
+precedencia: 110
+suprime: [DAS]
+
+# Reconhecido, porém NUNCA arquivado sozinho: vai para validação mesmo com
+# score alto. Parcelamento tem tarefa própria, e confirmar qual é leva segundos
+# para um humano e é impossível para o robô sem consultar o Processos.
+sempre_validar: true
+
+palavras_chave_principais:
+  - termo: "PARCELAMENTO DO SIMPLES NACIONAL"
+    peso: 50
+  - termo: "PEDIDO DE PARCELAMENTO"
+    peso: 45
+  - termo: "PARCELAMENTO"
+    peso: 40
+  - termo: "PARCELA"
+    peso: 35
+
+palavras_chave_secundarias:
+  - "SIMPLES NACIONAL"
+  - "NUMERO DO PARCELAMENTO"
+  - "NUMERO DA PARCELA"
+  - "MULTA"
+  - "JUROS"
+  - "SALDO DEVEDOR"
+  - "PERIODO DE APURACAO"
+
+campos_obrigatorios: [cnpj]
+campos_opcionais: [competencia, valor, vencimento, razao_social]
+
+criterios_confiavel: >
+  Nenhum. Este template existe para SEPARAR, não para arquivar sozinho.
+  Todo documento que cai aqui vai para validação.
+criterios_validacao_manual: >
+  Sempre. O operador confirma a qual parcelamento e a qual tarefa o documento
+  pertence. Se o escritório não tiver clientes em parcelamento, este template
+  simplesmente nunca dispara — e continua protegendo contra o dia em que tiver.

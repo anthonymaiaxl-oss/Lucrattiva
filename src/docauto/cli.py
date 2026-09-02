@@ -172,12 +172,12 @@ def cmd_prioridade(args) -> int:
             print(f"      {e}")
 
     print("\nordem sugerida:")
-    cabecalho = f"  {'tipo':10} {'empresas':>9} {'docs/mês':>9}"
+    cabecalho = f"  {'tipo':18} {'empresas':>9} {'docs/mês':>9}"
     if p.usou_tarefas:
         cabecalho += f" {'tarefas':>8}"
     print(cabecalho + "   situação")
     for l in p.linhas:
-        linha = f"  {l.tipo:10} {l.empresas:9} {l.docs_mes:9.1f}"
+        linha = f"  {l.tipo:18} {l.empresas:9} {l.docs_mes:9.1f}"
         if p.usou_tarefas:
             linha += f" {l.tarefas_onvio if l.tarefas_onvio is not None else '-':>8}"
         linha += "   " + ("template pronto" if l.tem_template else "SEM TEMPLATE")

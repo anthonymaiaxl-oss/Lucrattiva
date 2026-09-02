@@ -158,6 +158,12 @@ def classificar(ex: Extracao, templates: dict[str, Template], tabela: TabelaCodi
         if not tabela.conferida:
             cls.avisos.append("TABELA_CODIGOS_NAO_CONFERIDA")
 
+    if templates[top.tipo].sempre_validar:
+        cls.ambiguo = True
+        cls.motivos.append(
+            f"{top.tipo} nunca é arquivado automaticamente: a tarefa correspondente "
+            "não é a da obrigação mensal")
+
     if templates[top.tipo].exige_subtipo and not cls.subtipo:
         cls.ambiguo = True
         cls.motivos.append(

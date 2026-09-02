@@ -147,9 +147,22 @@ Teste estes três casos antes de mudar de tributo — cada um leva 10 minutos:
 
 | Caso | Por que importa |
 |---|---|
-| **Filial** (CNPJ com final diferente de 0001) | O documento pode trazer o CNPJ da filial e a tarefa estar na matriz. É a pegadinha mais comum |
 | **Competência antiga** (3–6 meses atrás) | Tarefa antiga pode estar concluída; o comportamento muda |
-| **DAS de parcelamento** | É um DAS, casa com o template, **mas a tarefa é outra**. Se vincular na tarefa do DAS mensal, você achou um erro grave cedo — que é o melhor momento para achar |
+| **Origem diferente do PDF** | O mesmo DAS sai com layout diferente conforme onde foi gerado (PGDAS-D, app do Simples Nacional, e-CAC). Template calibrado numa origem só quebra na primeira guia que vier de outra |
+| **Empresa cadastrada recentemente** | Empresa nova costuma ter cadastro incompleto — é onde a identificação falha primeiro |
+| **DAS retificador / complementar** | Segunda guia da mesma competência. Testa se a tarefa aceita dois documentos ou se o segundo fica órfão |
+
+> **Filial:** se o escritório não atende empresa com filial, pule — não invente
+> caso de teste que não existe na carteira. Volte a este teste no dia em que
+> entrar o primeiro cliente com filial; até lá é tempo gasto à toa.
+
+> **DAS de parcelamento:** se você não achou nenhum, provavelmente não há
+> cliente em parcelamento — e não vale caçar. **A proteção já está no código**:
+> existe um template `DAS_PARCELAMENTO` que reconhece a parcela pelos termos
+> "parcelamento", "número da parcela", "multa"/"juros" e a manda **sempre** para
+> validação, mesmo com score alto, porque a tarefa dela no Processos é outra.
+> Se um dia aparecer, ele não vai ser vinculado na tarefa do DAS mensal.
+> O DAS mensal comum continua automático.
 
 ---
 

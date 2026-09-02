@@ -45,6 +45,7 @@ class Linha:
     docs_mes: float = 0.0
     tarefas_onvio: int | None = None
     tem_template: bool = False
+    trava: bool = False          # existe para separar, não para ter volume
     nota: str = ""
 
 
@@ -88,8 +89,12 @@ def calcular(cadastro, templates, tarefas=None) -> Prioridade:
             docs_mes=round(docs_por_tipo.get(tipo, 0.0), 1),
             tem_template=tipo in templates,
             tarefas_onvio=(tarefas.por_template.get(tipo, 0) if tarefas else None),
+            trava=bool(getattr(templates.get(tipo), "sempre_validar", False)),
         )
-        if linha.tarefas_onvio == 0:
+        if linha.trava:
+            linha.nota = ("trava de segurança: nunca é arquivado sozinho e não "
+                          "precisa de volume — deixe como está")
+        elif linha.tarefas_onvio == 0:
             linha.nota = "nenhuma obrigação cadastrada no Onvio — Express devolverá 'não encontrada'"
         elif linha.empresas == 0 and linha.tarefas_onvio:
             linha.nota = "há obrigação no Onvio mas nenhuma empresa do cadastro se enquadra — conferir regimes"
@@ -100,8 +105,9 @@ def calcular(cadastro, templates, tarefas=None) -> Prioridade:
         p.linhas.append(linha)
 
     # Obrigação real pesa mais que estimativa por regime.
-    p.linhas.sort(key=lambda l: (l.tarefas_onvio or 0, l.docs_mes, l.empresas),
-                  reverse=True)
+    # Travas vão para o fim: não disputam prioridade com tributo de volume.
+    p.linhas.sort(key=lambda l: (not l.trava, l.tarefas_onvio or 0, l.docs_mes,
+                                 l.empresas), reverse=True)
     return p
 
 
