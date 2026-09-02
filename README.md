@@ -72,6 +72,7 @@ python -m docauto diagnosticar --entrada C:/amostras --texto C:/amostras/_texto
 python -m docauto espelhar             # refaz cópias que falharam (Dropbox fora do ar)
 python -m docauto folha-teste --entrada C:/teste-lote --saida C:/teste-lote/apuracao.csv
 python -m docauto onvio-conferir --empresas data/onvio/empresas.csv --tarefas data/onvio/tarefas.csv
+python -m docauto prioridade --tarefas data/onvio/tarefas.csv   # qual template configurar em seguida
 ```
 
 No Windows, `scripts/processar.bat` e `scripts/enviar.bat` já estão prontos para
@@ -96,7 +97,7 @@ candidatos e as sugestões de empresa — é o painel de exceções da Fase 1.
 python -m unittest discover -s tests -t .
 ```
 
-99 testes cobrindo dígito verificador de CNPJ, prioridade da competência
+108 testes cobrindo dígito verificador de CNPJ, prioridade da competência
 (vencimento nunca vira competência), PIS × COFINS, supressão do DAS, retenção
 conjunta, sanitização de nome no Windows, não sobrescrita, detecção de duplicado e a fila
 de envio (idempotência, piloto, limite, conciliação, bloqueio) e o fechamento

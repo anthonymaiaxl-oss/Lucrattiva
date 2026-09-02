@@ -783,3 +783,61 @@ class TestFolhaTeste(unittest.TestCase):
         self.gerar()
         self.assertFalse((self.tmp / "CLIENTES").exists())
         self.assertFalse((self.tmp / "envio.csv").exists())
+
+
+class TestPrioridade(unittest.TestCase):
+    """A ordem dos próximos templates tem de vir da carteira real, não de uma
+    lista genérica: numa carteira só de Simples, PIS e COFINS são volume zero."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.templates = carregar_templates(RAIZ / "config" / "templates")
+
+    def cadastro_falso(self, regimes: list[str]):
+        from docauto.empresas import Cadastro, Empresa
+        return Cadastro([
+            Empresa(id=f"{i:04d}", razao_social=f"EMPRESA {i} LTDA",
+                    cnpj="11222333000181", regime=r, ativa=True)
+            for i, r in enumerate(regimes, start=1)])
+
+    def ordem(self, p):
+        return [l.tipo for l in p.linhas]
+
+    def test_carteira_simples_poe_das_na_frente(self):
+        from docauto.prioridade import calcular
+        p = calcular(self.cadastro_falso(["SIMPLES NACIONAL"] * 8 + ["LUCRO PRESUMIDO"]),
+                     self.templates)
+        self.assertEqual(self.ordem(p)[0], "DAS")
+
+    def test_carteira_presumido_poe_pis_cofins_na_frente(self):
+        from docauto.prioridade import calcular
+        p = calcular(self.cadastro_falso(["LUCRO PRESUMIDO"] * 8 + ["SIMPLES NACIONAL"]),
+                     self.templates)
+        self.assertIn(self.ordem(p)[0], ("PIS", "COFINS"))
+        self.assertIn("DAS", self.ordem(p))
+
+    def test_empresa_sem_regime_e_sinalizada(self):
+        from docauto.prioridade import calcular
+        p = calcular(self.cadastro_falso(["SIMPLES NACIONAL", ""]), self.templates)
+        self.assertEqual(len(p.sem_regime), 1)
+        self.assertEqual(p.total_empresas, 2)
+
+    def test_obrigacao_real_do_onvio_manda_na_ordem(self):
+        from docauto.onvio import conferir_tarefas, ler_planilha
+        from docauto.prioridade import calcular
+        tarefas = conferir_tarefas(
+            ler_planilha(FIXTURES / "onvio" / "tarefas_onvio.csv"), self.templates)
+        # carteira quase toda Simples, mas o Onvio só tem tarefa de PIS/COFINS/DAS
+        p = calcular(self.cadastro_falso(["SIMPLES NACIONAL"] * 10), self.templates,
+                     tarefas)
+        sem_tarefa = [l for l in p.linhas if l.tarefas_onvio == 0]
+        self.assertTrue(all("não encontrada" in l.nota for l in sem_tarefa))
+        self.assertGreater(len([l for l in p.linhas if l.tarefas_onvio]), 0)
+
+    def test_regimes_escritos_de_formas_diferentes(self):
+        from docauto.prioridade import classificar_regime
+        self.assertEqual(classificar_regime("Simples Nacional"), "SIMPLES")
+        self.assertEqual(classificar_regime("LUCRO PRESUMIDO"), "PRESUMIDO")
+        self.assertEqual(classificar_regime("lucro real"), "REAL")
+        self.assertEqual(classificar_regime("MEI"), "MEI")
+        self.assertIsNone(classificar_regime("a definir"))

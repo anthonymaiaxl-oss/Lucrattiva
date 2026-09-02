@@ -15,6 +15,7 @@
     python -m docauto folha-teste --entrada C:/amostras --saida C:/amostras/teste.csv
     python -m docauto doutor
     python -m docauto onvio-conferir --empresas data/onvio/empresas.csv
+    python -m docauto prioridade --tarefas data/onvio/tarefas.csv
 """
 from __future__ import annotations
 
@@ -32,6 +33,7 @@ from .doutor import ERRO, OK, resumo, verificar
 from .espelho import FilaEspelho
 from .onvio import (conferir_empresas, conferir_tarefas, escrever_cadastro,
                     gerar_cadastro, ler_planilha)
+from .prioridade import calcular, novos_candidatos
 from .normalize import extrair_campos, formatar_cnpj
 from .confidence import AUTOMATICO, PENDENTE, REVISAO, avaliar
 from .empresas import Cadastro
@@ -149,6 +151,49 @@ def cmd_relatorio(args) -> int:
 
 
 MARCAS = {"OK": "OK  ", "AVISO": "!   ", "ERRO": "ERRO"}
+
+
+def cmd_prioridade(args) -> int:
+    """Diz QUAIS templates configurar em seguida, pela carteira real."""
+    cfg = carregar_config(args.config)
+    proc = Processador(cfg)
+    tarefas = None
+    if args.tarefas:
+        tarefas = conferir_tarefas(ler_planilha(args.tarefas), proc.templates)
+
+    p = calcular(proc.cadastro, proc.templates, tarefas)
+    print(f"carteira: {p.total_empresas} empresa(s) ativa(s)")
+    for regime, qtd in sorted(p.por_regime.items(), key=lambda x: -x[1]):
+        print(f"  {regime:12} {qtd:5}  {qtd/max(p.total_empresas,1):5.0%}")
+    if p.sem_regime:
+        print(f"  SEM REGIME   {len(p.sem_regime):5}  "
+              "-> preencher REGIME_TRIBUTARIO; sem isso a ordem abaixo erra")
+        for e in p.sem_regime[:5]:
+            print(f"      {e}")
+
+    print("\nordem sugerida:")
+    cabecalho = f"  {'tipo':10} {'empresas':>9} {'docs/mês':>9}"
+    if p.usou_tarefas:
+        cabecalho += f" {'tarefas':>8}"
+    print(cabecalho + "   situação")
+    for l in p.linhas:
+        linha = f"  {l.tipo:10} {l.empresas:9} {l.docs_mes:9.1f}"
+        if p.usou_tarefas:
+            linha += f" {l.tarefas_onvio if l.tarefas_onvio is not None else '-':>8}"
+        linha += "   " + ("template pronto" if l.tem_template else "SEM TEMPLATE")
+        print(linha)
+        if l.nota:
+            print(f"       -> {l.nota}")
+
+    if not p.usou_tarefas:
+        print("\ndocs/mês é ESTIMATIVA por regime. Rode com --tarefas "
+              "<exportação do Onvio> para ordenar pela obrigação real.")
+    candidatos = novos_candidatos(tarefas) if tarefas else []
+    if candidatos:
+        print("\nobrigações do Onvio sem template (candidatas a próximos):")
+        for nome in candidatos:
+            print(f"  {nome}")
+    return 0
 
 
 def cmd_onvio_conferir(args) -> int:
@@ -506,6 +551,11 @@ def main(argv=None) -> int:
 
     sub.add_parser("init", help="cria config, cadastro e pastas").set_defaults(func=cmd_init)
     sub.add_parser("validar", help="confere o cadastro de empresas").set_defaults(func=cmd_validar)
+    s = sub.add_parser("prioridade",
+                       help="em que ordem configurar os próximos templates")
+    s.add_argument("--tarefas", help="exportação de tarefas do Onvio (CSV/XLSX)")
+    s.set_defaults(func=cmd_prioridade)
+
     s = sub.add_parser("onvio-conferir",
                        help="cruza a exportação do Onvio com o cadastro e os templates")
     s.add_argument("--empresas", required=True, help="exportação de empresas (CSV/XLSX)")

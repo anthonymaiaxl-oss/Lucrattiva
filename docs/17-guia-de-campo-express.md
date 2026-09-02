@@ -140,6 +140,56 @@ falham falham por [motivo]".
 
 ---
 
+### Antes de sair do DAS: as três variações que derrubam a comemoração
+
+Um DAS que vinculou prova que o caminho existe. Não prova que o DAS funciona.
+Teste estes três casos antes de mudar de tributo — cada um leva 10 minutos:
+
+| Caso | Por que importa |
+|---|---|
+| **Filial** (CNPJ com final diferente de 0001) | O documento pode trazer o CNPJ da filial e a tarefa estar na matriz. É a pegadinha mais comum |
+| **Competência antiga** (3–6 meses atrás) | Tarefa antiga pode estar concluída; o comportamento muda |
+| **DAS de parcelamento** | É um DAS, casa com o template, **mas a tarefa é outra**. Se vincular na tarefa do DAS mensal, você achou um erro grave cedo — que é o melhor momento para achar |
+
+---
+
+## Qual template configurar em seguida
+
+Não siga uma lista genérica. A ordem correta sai da sua carteira:
+
+```bat
+python -m docauto prioridade --tarefas data\onvio\tarefas.csv
+```
+
+```
+carteira: 3 empresa(s) ativa(s)
+  SIMPLES          1    33%
+  PRESUMIDO        1    33%
+  REAL             1    33%
+
+ordem sugerida:
+  tipo        empresas  docs/mês  tarefas   situação
+  PIS                2       2.0        1   template pronto
+  COFINS             2       2.0        1   template pronto
+  DAS                1       1.0        1   template pronto
+  CSLL               2       1.3        0   template pronto
+       -> nenhuma obrigação cadastrada no Onvio — Express devolverá 'não encontrada'
+```
+
+**Por que isso não é detalhe:** a lista original (DAS → PIS → COFINS → IR →
+CSLL) assume carteira de Lucro Presumido/Real. Num escritório majoritariamente
+**Simples Nacional**, PIS e COFINS têm volume próximo de zero — e um dia inteiro
+neles seria um dia gasto num template que quase nunca roda. Nesse caso o próximo
+ganho real costuma estar em INSS/FGTS, notas fiscais ou declarações, que o
+próprio comando aponta na lista de "obrigações do Onvio sem template".
+
+A coluna `tarefas` manda mais que `docs/mês`: obrigação cadastrada é fato,
+estimativa por regime é aproximação. Tributo com **0 tarefas** não deve ser o
+próximo — por melhor que fique o template, o Express vai devolver "não
+encontrada".
+
+---
+
 ## DIA 3 — PIS e COFINS (4h)
 
 Os dois **juntos**, nunca separados: eles se confundem entre si, e testar um
