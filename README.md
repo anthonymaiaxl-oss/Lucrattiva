@@ -12,6 +12,8 @@ documento não arquivado. **Na dúvida, para e pergunta.**
 
 ## Por onde começar
 
+👉 **[docs/17 — Guia de campo: os 5 primeiros dias no Express](docs/17-guia-de-campo-express.md)** —
+o que fazer hora a hora, na empresa, começando amanhã.
 👉 **[docs/12 — Runbook: operar no Onvio Express](docs/12-runbook-onvio-express.md)** —
 o passo a passo de execução, com a mão no Onvio.
 👉 **[docs/11 — Express e envio funcionando esta semana](docs/11-express-esta-semana.md)** —
@@ -37,6 +39,7 @@ o roteiro completo, escrito para um escritório que começou agora.
 | [14 Servidor + Dropbox](docs/14-copias-servidor-dropbox.md) | Cópias em vários destinos e a ordem correta do fluxo |
 | [15 Acessos e instalação](docs/15-acessos-e-instalacao.md) | O que está automatizado e o que só você pode fazer |
 | [16 Espelhar o Onvio](docs/16-espelhar-o-onvio.md) | Conferir cadastro e obrigações a partir da exportação do Onvio |
+| [17 Guia de campo](docs/17-guia-de-campo-express.md) | Os 5 primeiros dias no Express, hora a hora |
 
 ---
 
@@ -67,6 +70,7 @@ python -m docauto envio-status         # o que o Express consumiu e o que travou
 
 python -m docauto diagnosticar --entrada C:/amostras --texto C:/amostras/_texto
 python -m docauto espelhar             # refaz cópias que falharam (Dropbox fora do ar)
+python -m docauto folha-teste --entrada C:/teste-lote --saida C:/teste-lote/apuracao.csv
 python -m docauto onvio-conferir --empresas data/onvio/empresas.csv --tarefas data/onvio/tarefas.csv
 ```
 

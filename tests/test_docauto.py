@@ -722,3 +722,64 @@ class TestConferenciaOnvio(unittest.TestCase):
         linhas = [{"CNPJ": "11.222.333/0001-82", "Razão Social": "ERRADA LTDA"}]
         conf = conferir_empresas(linhas, self.cadastro)
         self.assertEqual(conf.divergencias[0].tipo, "CNPJ_INVALIDO_NO_ONVIO")
+
+
+class TestFolhaTeste(unittest.TestCase):
+    """A folha de apuração é o que separa 'o Express não reconhece' de
+    'a tarefa não existe' — precisa sair preenchida e com as colunas certas."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.cfg = yaml.safe_load((RAIZ / "config" / "config.example.yaml").read_text())
+        self.cfg["_raiz"] = str(RAIZ)
+        self.cfg["_arquivo"] = "teste"
+        self.cfg["cadastro"]["arquivo"] = "data/empresas.exemplo.csv"
+        self.cfg["processamento"]["extensoes"].append(".txt")
+        self.cfg["registro"] = {"csv": str(self.tmp / "r.csv"),
+                                "jsonl": str(self.tmp / "r.jsonl")}
+        self.cfg["envio"]["fila"] = str(self.tmp / "envio.csv")
+        self.cfg["espelho"] = str(self.tmp / "espelho.csv")
+        self.cfg["pastas"]["base_clientes"] = str(self.tmp / "CLIENTES")
+        self.saida = self.tmp / "apuracao.csv"
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def gerar(self):
+        import argparse
+        from docauto.cli import cmd_folha_teste
+        cfg_path = self.tmp / "config.yaml"
+        cfg_path.write_text(yaml.safe_dump(self.cfg, allow_unicode=True))
+        args = argparse.Namespace(config=str(cfg_path), entrada=str(FIXTURES),
+                                  saida=str(self.saida))
+        self.assertEqual(cmd_folha_teste(args), 0)
+        import csv as _csv
+        return list(_csv.DictReader(
+            self.saida.read_text(encoding="utf-8-sig").splitlines(), delimiter=";"))
+
+    def test_uma_linha_por_documento_com_colunas_em_branco_para_o_express(self):
+        linhas = self.gerar()
+        self.assertEqual(len(linhas), len(list(FIXTURES.glob("*.txt"))))
+        for linha in linhas:
+            self.assertEqual(linha["tarefa_vinculada"], "")
+            self.assertEqual(linha["tempo_seg"], "")
+
+    def test_preenche_o_que_a_automacao_entendeu(self):
+        linhas = {l["arquivo"]: l for l in self.gerar()}
+        das = linhas["das.txt"]
+        self.assertEqual(das["tipo_detectado"], "DAS")
+        self.assertEqual(das["competencia"], "2026-08")
+        self.assertEqual(das["decisao_automacao"], AUTOMATICO)
+        self.assertIn("EXEMPLO", das["empresa_detectada"])
+
+    def test_registra_o_motivo_da_pendencia(self):
+        linhas = {l["arquivo"]: l for l in self.gerar()}
+        self.assertEqual(linhas["darf_sem_competencia.txt"]["observacao"],
+                         "COMPETENCIA_NAO_IDENTIFICADA")
+        self.assertEqual(linhas["darf_empresa_desconhecida.txt"]["observacao"],
+                         "EMPRESA_NAO_IDENTIFICADA")
+
+    def test_nao_arquiva_nem_registra_nada(self):
+        self.gerar()
+        self.assertFalse((self.tmp / "CLIENTES").exists())
+        self.assertFalse((self.tmp / "envio.csv").exists())

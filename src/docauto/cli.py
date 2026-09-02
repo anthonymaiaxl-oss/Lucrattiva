@@ -12,6 +12,7 @@
     python -m docauto envio-confirmar --lote D:/CONTABIL/LOTE_EXPRESS/2026-08
     python -m docauto diagnosticar --entrada C:/amostras --texto C:/amostras/_texto
     python -m docauto espelhar
+    python -m docauto folha-teste --entrada C:/amostras --saida C:/amostras/teste.csv
     python -m docauto doutor
     python -m docauto onvio-conferir --empresas data/onvio/empresas.csv
 """
@@ -32,7 +33,7 @@ from .espelho import FilaEspelho
 from .onvio import (conferir_empresas, conferir_tarefas, escrever_cadastro,
                     gerar_cadastro, ler_planilha)
 from .normalize import extrair_campos, formatar_cnpj
-from .confidence import AUTOMATICO, PENDENTE, REVISAO
+from .confidence import AUTOMATICO, PENDENTE, REVISAO, avaliar
 from .empresas import Cadastro
 from .envio import PARADO, FilaEnvio, escrever_conferencia
 from .pipeline import Processador
@@ -309,6 +310,76 @@ def cmd_diagnosticar(args) -> int:
     return 0
 
 
+def cmd_folha_teste(args) -> int:
+    """Gera a folha de apuração do teste em lote.
+
+    Para cada documento, preenche o que a AUTOMAÇÃO entendeu e deixa em branco
+    o que o EXPRESS fez. Comparar as duas colunas é o que separa "o Express não
+    reconheceu" de "o documento estava ilegível" de "a tarefa não existia".
+    """
+    cfg = carregar_config(args.config)
+    proc = Processador(cfg)
+    pasta = Path(args.entrada)
+    extensoes = set(cfg["processamento"]["extensoes"])
+    arquivos = [a for a in sorted(pasta.rglob("*"))
+                if a.is_file() and a.suffix.lower() in extensoes]
+    if not arquivos:
+        print(f"nenhum documento reconhecível em {pasta}")
+        return 1
+
+    colunas = ["arquivo", "empresa_detectada", "cnpj", "tipo_detectado",
+               "competencia", "score", "decisao_automacao",
+               "tarefa_vinculada", "tempo_seg", "observacao"]
+    linhas = []
+    for arquivo in arquivos:
+        texto, origem = textio.ler(arquivo,
+                                   cfg["processamento"].get("ocr_habilitado", False),
+                                   cfg["processamento"].get("ocr_idioma", "por"))
+        ex = extrair_campos(texto, origem)
+        cls = classificar(ex, proc.templates, proc.tabela,
+                          cfg["classificacao"]["score_minimo_tipo"],
+                          cfg["classificacao"]["margem_desempate"])
+        cls.campos_faltando = proc._campos_faltando(cls, ex)
+        resolucao = proc.cadastro.resolver(
+            ex, pasta_origem=str(arquivo.parent),
+            limiar_forte=cfg["empresas"]["similaridade_forte"],
+            limiar_fraco=cfg["empresas"]["similaridade_fraca"])
+        av = avaliar(ex, resolucao, cls, cfg)
+        linhas.append({
+            "arquivo": arquivo.name,
+            "empresa_detectada": resolucao.empresa.razao_social if resolucao.empresa else "",
+            "cnpj": formatar_cnpj(ex.cnpj) if ex.cnpj else "",
+            "tipo_detectado": cls.tipo + (f"/{cls.subtipo}" if cls.subtipo else ""),
+            "competencia": ex.competencia.valor or "",
+            "score": av.score,
+            "decisao_automacao": av.decisao,
+            "tarefa_vinculada": "", "tempo_seg": "",
+            "observacao": (av.travas[0].split(":")[0] if av.travas else ""),
+        })
+
+    saida = Path(args.saida)
+    saida.parent.mkdir(parents=True, exist_ok=True)
+    with saida.open("w", newline="", encoding="utf-8-sig") as f:
+        w = csv.DictWriter(f, fieldnames=colunas, delimiter=";")
+        w.writeheader()
+        w.writerows(linhas)
+
+    tipos = Counter(l["tipo_detectado"].split("/")[0] for l in linhas)
+    decisoes = Counter(l["decisao_automacao"] for l in linhas)
+    print(f"{len(linhas)} documento(s) -> {saida}\n")
+    print("o que a AUTOMAÇÃO entendeu:")
+    for tipo, qtd in tipos.most_common():
+        print(f"  {tipo:24} {qtd:4}")
+    print()
+    for chave, qtd in decisoes.most_common():
+        print(f"  {chave:24} {qtd:4}  {qtd/len(linhas):5.0%}")
+    print("\nagora suba estes documentos no Express e preencha, para cada linha:")
+    print("  tarefa_vinculada = SIM | MULTIPLA | NAO")
+    print("  tempo_seg        = segundos gastos naquele documento (opcional)")
+    print("  observacao       = o que aconteceu, quando for NAO ou MULTIPLA")
+    return 0
+
+
 def cmd_espelhar(args) -> int:
     cfg = carregar_config(args.config)
     fila = FilaEspelho(caminho_projeto(cfg, cfg.get("espelho", "data/registro/espelho.csv")))
@@ -460,6 +531,12 @@ def main(argv=None) -> int:
     s.add_argument("--linhas", type=int, default=0,
                    help="mostrar as N primeiras linhas do texto lido")
     s.set_defaults(func=cmd_diagnosticar)
+
+    s = sub.add_parser("folha-teste",
+                       help="gera a folha de apuração do teste em lote no Express")
+    s.add_argument("--entrada", required=True, help="pasta com os documentos do teste")
+    s.add_argument("--saida", required=True, help="arquivo CSV a gerar")
+    s.set_defaults(func=cmd_folha_teste)
 
     s = sub.add_parser("espelhar", help="refaz as cópias secundárias que falharam")
     s.add_argument("--dry-run", action="store_true")
