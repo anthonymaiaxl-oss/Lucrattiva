@@ -166,6 +166,51 @@ Teste estes três casos antes de mudar de tributo — cada um leva 10 minutos:
 
 ---
 
+## "Preciso instalar o Python agora?"
+
+**Não.** São duas coisas diferentes, e confundi-las custa meia manhã.
+
+| Etapa | Onde acontece | Precisa de Python? |
+|---|---|---|
+| Configurar template no **Express** (DAS, PIS, COFINS, IR, CSLL) | Dentro do Onvio, no navegador | **Não** |
+| Subir documento e ver se vincula na tarefa | Dentro do Onvio | **Não** |
+| Decidir a ORDEM dos próximos templates (`prioridade`) | Máquina | Ajuda — dá para fazer à mão |
+| Cruzar cadastro e obrigações (`onvio-conferir`) | Máquina | Ajuda — dá para fazer à mão |
+| Folha de apuração do teste em lote (`folha-teste`) | Máquina | **Sim**, e vale muito |
+| Arquivamento automático no servidor + Dropbox | Máquina | **Sim**, obrigatório |
+
+Os templates do **Express** são configurados dentro do Domínio/Onvio. Os
+arquivos YAML deste repositório são de **outra camada** — a automação de
+arquivamento, que só entra na Entrega 3. Enquanto você está no Express, o
+Python não bloqueia nada.
+
+**Quando instalar:** no fim do Dia 3 ou no Dia 4, preparando o teste em lote.
+A instalação leva ~15 minutos (`scripts\instalar.bat`, ver `docs/15`) e não
+depende de nada do Express. Se a máquina da empresa tiver restrição de
+instalação de programas, descubra isso **hoje** falando com quem administra —
+é o tipo de bloqueio que só aparece no dia em que atrapalha.
+
+### Decidir a ordem sem Python (2 minutos, no Excel)
+
+1. Abra a exportação de **empresas** do Onvio.
+2. Filtre/agrupe a coluna de **regime tributário** e conte.
+3. Leia assim:
+
+| Carteira | Próximo template |
+|---|---|
+| Maioria **Simples Nacional** | **Não é PIS/COFINS.** Eles quase não aparecem. Vá para o que tem volume: INSS/FGTS, notas, declarações |
+| Maioria **Lucro Presumido/Real** | **PIS e COFINS**, juntos |
+| Misto | O maior grupo primeiro |
+
+4. Abra a exportação de **tarefas** e confirme: existe obrigação cadastrada
+   para esse tributo? Se não existir, ele **não** é o próximo — o Express vai
+   devolver "não encontrada" por melhor que fique o template.
+
+O comando `prioridade` faz exatamente essa conta, com mais precisão. Mas a conta
+no Excel resolve hoje e não te tira do Express.
+
+---
+
 ## Qual template configurar em seguida
 
 Não siga uma lista genérica. A ordem correta sai da sua carteira:
