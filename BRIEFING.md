@@ -651,6 +651,34 @@ copia).
 
 ---
 
+# 15-B. PORTAL DO CLIENTE E ROTINAS AUTOMÁTICAS
+
+Frente paralela, com prioridade **acima** da automação de arquivamento por
+decisão do escritório. Detalhes em `docs/18` e `docs/19`.
+
+**Regra estrutural, diferente da do arquivamento:** silêncio é **não publicar**.
+Tipo de documento sem decisão registrada em `config/portal/matriz-publicacao.csv`
+não vai para o portal. O erro grave aqui é externo e sem conserto — cliente A
+enxergar documento do cliente B é incidente de LGPD.
+
+**Ordem de implantação:** empresa de teste → publicação manual → 1 cliente
+piloto → 3 a 5 clientes → carteira. Rotinas em três ondas, começando pela
+interna (aviso de tarefa atrasada), que não sai do escritório.
+
+**Os dois testes que mais reprovam:** entrar como cliente e confirmar que ele
+não vê nada de outra empresa; e conferir que o aviso chega na **caixa de
+entrada** (Gmail, Outlook e corporativo), não no spam — aviso em spam faz tudo
+"funcionar" sem ninguém receber.
+
+**Meta de adoção:** 80% dos clientes com primeiro acesso em 30 dias. Portal
+configurado e vazio é o desfecho mais comum desse tipo de projeto.
+
+**Encaixe com a automação:** a matriz de publicação usa tipo, empresa e
+competência — exatamente os campos que a automação de documentos já extrai.
+Preenchê-la agora é escrever a especificação da integração futura.
+
+---
+
 # 16. INDICADORES
 
 | Indicador | Meta mês 1 | Meta mês 6 |

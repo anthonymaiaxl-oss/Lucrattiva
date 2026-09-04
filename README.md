@@ -40,6 +40,8 @@ o roteiro completo, escrito para um escritório que começou agora.
 | [15 Acessos e instalação](docs/15-acessos-e-instalacao.md) | O que está automatizado e o que só você pode fazer |
 | [16 Espelhar o Onvio](docs/16-espelhar-o-onvio.md) | Conferir cadastro e obrigações a partir da exportação do Onvio |
 | [17 Guia de campo](docs/17-guia-de-campo-express.md) | Os 5 primeiros dias no Express, hora a hora |
+| [18 Portal do Cliente](docs/18-portal-do-cliente.md) | Decisões, matriz de publicação, go-live por ondas |
+| [19 Rotinas automáticas](docs/19-rotinas-automaticas.md) | Catálogo por finalidade, ordem de ativação e protocolo |
 
 ---
 
@@ -112,6 +114,8 @@ fila de espelho, a verificação de ambiente e a conferência contra a exportaç
 | `config/templates/*.yaml` | Um arquivo por tipo de documento |
 | `config/codigos_receita.yaml` | Código de receita → tributo (**conferir antes de usar em produção**) |
 | `data/empresas.csv` | Cadastro central (não versionado) |
+| `config/portal/matriz-publicacao.csv` | O que vai ao Portal do Cliente, para quem e quando |
+| `config/portal/rotinas.csv` | Catálogo das rotinas automáticas e seus campos de decisão |
 | `config/config.yaml` → `destinos:` | Servidor, Dropbox e o que mais houver — o documento vai para todos |
 | `config/config.yaml` → `envio:` | Modo de envio ao Express, empresas piloto, limite por rodada |
 

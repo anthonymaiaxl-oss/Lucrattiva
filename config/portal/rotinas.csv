@@ -1,0 +1,22 @@
+# CATALOGO DE ROTINAS AUTOMATICAS — preencher antes de ativar qualquer uma.
+# Organizado por FINALIDADE, nao por nome de recurso: confirme na sua versao do
+# Dominio/Onvio qual recurso faz cada uma e anote em RECURSO_DOMINIO.
+#
+# ATIVA          NAO ate ter passado no teste com cliente-piloto
+# ONDA           1 = primeira semana | 2 = depois de 1 estavel | 3 = por ultimo
+# RISCO          BAIXO (interno) | MEDIO (cliente ve) | ALTO (cliente age errado)
+# GATILHO        o que dispara
+# DESTINATARIO   quem recebe
+# JANELA         dia/hora de disparo
+# FALHA          o que acontece se falhar e quem e avisado
+ID;FINALIDADE;RECURSO_DOMINIO;ATIVA;ONDA;RISCO;GATILHO;DESTINATARIO;JANELA;FALHA;RESPONSAVEL
+R01;Avisar que ha documento novo no portal;;NAO;1;MEDIO;documento publicado;perfil da matriz de publicacao;1x ao dia 17h;e-mail nao sai - conferir na segunda;
+R02;Enviar guias do mes com prazo;;NAO;1;ALTO;guia publicada;FINANCEIRO do cliente;ate 5 dias do vencimento;cliente paga em atraso - multa;
+R03;Lembrete de vencimento a vencer;;NAO;2;MEDIO;D-2 do vencimento;FINANCEIRO do cliente;08h;lembrete duplicado irrita;
+R04;Solicitar documentos ao cliente;;NAO;2;MEDIO;falta documento da competencia;SOCIO do cliente;dia 5 do mes;pedir o que ja foi enviado queima confianca;
+R05;Cobrar pendencia nao atendida;;NAO;3;ALTO;solicitacao sem resposta ha X dias;SOCIO do cliente;semanal;cobranca indevida;
+R06;Avisar entrega de obrigacao cumprida;;NAO;2;BAIXO;tarefa concluida;SOCIO do cliente;no ato;;
+R07;Aviso interno de tarefa atrasada;;NAO;1;BAIXO;tarefa vencida;equipe do escritorio;08h diario;time nao ve o atraso;
+R08;Aviso de certidao a vencer;;NAO;3;BAIXO;D-30 da validade;SOCIO do cliente;mensal;certidao vence sem aviso;
+R09;Boas-vindas / primeiro acesso ao portal;;NAO;1;MEDIO;cliente cadastrado;SOCIO do cliente;no ato;cliente nunca ativa o acesso;
+R10;Resumo mensal ao cliente;;NAO;3;BAIXO;fechamento do mes;SOCIO do cliente;dia 10;;

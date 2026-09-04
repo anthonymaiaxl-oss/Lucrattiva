@@ -1,0 +1,30 @@
+# MATRIZ DE PUBLICACAO NO PORTAL DO CLIENTE — preencher antes de ligar o portal
+# Uma linha por tipo de documento. Enquanto uma linha estiver com PUBLICA em branco,
+# aquele tipo NAO vai para o portal. Silencio = nao publica (padrao seguro).
+#
+# PUBLICA         SIM | NAO
+# QUEM_VE         TODOS | SOCIO | FINANCEIRO | RH  (perfis do cliente)
+# QUANDO          IMEDIATO | APOS_CONFERENCIA | DATA_FIXA
+# PRAZO_DIAS      dias antes do vencimento em que deve estar publicado
+# AVISA           SIM | NAO  (dispara notificacao/rotina)
+# RESPONSAVEL     quem do escritorio responde por esse tipo
+# OBSERVACAO      regra especifica
+TIPO_DOCUMENTO;SETOR;PUBLICA;QUEM_VE;QUANDO;PRAZO_DIAS;AVISA;RESPONSAVEL;OBSERVACAO
+DAS;FISCAL;SIM;FINANCEIRO;APOS_CONFERENCIA;5;SIM;;guia de pagamento - erro aqui o cliente paga errado
+DARF PIS;FISCAL;SIM;FINANCEIRO;APOS_CONFERENCIA;5;SIM;;
+DARF COFINS;FISCAL;SIM;FINANCEIRO;APOS_CONFERENCIA;5;SIM;;
+DARF IRPJ;FISCAL;SIM;FINANCEIRO;APOS_CONFERENCIA;5;SIM;;
+DARF CSLL;FISCAL;SIM;FINANCEIRO;APOS_CONFERENCIA;5;SIM;;
+DAS PARCELAMENTO;FISCAL;;FINANCEIRO;APOS_CONFERENCIA;5;SIM;;confirmar parcela antes de publicar
+GPS / INSS;DP;;FINANCEIRO;APOS_CONFERENCIA;5;SIM;;
+FGTS;DP;;FINANCEIRO;APOS_CONFERENCIA;5;SIM;;
+Holerite / recibo de pagamento;DP;;RH;APOS_CONFERENCIA;2;SIM;;dado pessoal de terceiro - restringir perfil
+Folha de pagamento (resumo);DP;;SOCIO;APOS_CONFERENCIA;2;SIM;;
+Rescisao;DP;;RH;APOS_CONFERENCIA;1;SIM;;prazo legal curto
+Balancete;CONTABIL;;SOCIO;APOS_CONFERENCIA;;NAO;;
+Balanco / DRE;CONTABIL;;SOCIO;APOS_CONFERENCIA;;SIM;;
+Recibo de entrega de declaracao;FISCAL;;SOCIO;IMEDIATO;;NAO;;comprova cumprimento de obrigacao
+Contrato social / alteracoes;SOCIETARIO;;SOCIO;IMEDIATO;;NAO;;documento permanente
+Certidao negativa;SOCIETARIO;;SOCIO;IMEDIATO;;NAO;;tem validade - avisar vencimento
+Nota fiscal recebida do cliente;FISCAL;NAO;;;;;;entra pelo portal, nao sai
+Documento interno / rascunho;;NAO;;;;;;NUNCA publicar
