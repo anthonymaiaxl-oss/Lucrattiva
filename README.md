@@ -42,6 +42,7 @@ o roteiro completo, escrito para um escritório que começou agora.
 | [17 Guia de campo](docs/17-guia-de-campo-express.md) | Os 5 primeiros dias no Express, hora a hora |
 | [18 Portal do Cliente](docs/18-portal-do-cliente.md) | Decisões, matriz de publicação, go-live por ondas |
 | [19 Rotinas automáticas](docs/19-rotinas-automaticas.md) | Catálogo por finalidade, ordem de ativação e protocolo |
+| [20 Textos das rotinas](docs/20-textos-das-rotinas.md) | O que preencher em cada rotina, com as mensagens prontas |
 
 ---
 

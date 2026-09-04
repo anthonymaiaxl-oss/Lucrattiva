@@ -1,22 +1,19 @@
-# CATALOGO DE ROTINAS AUTOMATICAS — preencher antes de ativar qualquer uma.
-# Organizado por FINALIDADE, nao por nome de recurso: confirme na sua versao do
-# Dominio/Onvio qual recurso faz cada uma e anote em RECURSO_DOMINIO.
+# CATALOGO DE ROTINAS AUTOMATICAS — ja preenchido com os valores recomendados.
+# Ajuste o que nao servir. Textos das mensagens em docs/20.
 #
-# ATIVA          NAO ate ter passado no teste com cliente-piloto
-# ONDA           1 = primeira semana | 2 = depois de 1 estavel | 3 = por ultimo
-# RISCO          BAIXO (interno) | MEDIO (cliente ve) | ALTO (cliente age errado)
-# GATILHO        o que dispara
-# DESTINATARIO   quem recebe
-# JANELA         dia/hora de disparo
-# FALHA          o que acontece se falhar e quem e avisado
-ID;FINALIDADE;RECURSO_DOMINIO;ATIVA;ONDA;RISCO;GATILHO;DESTINATARIO;JANELA;FALHA;RESPONSAVEL
-R01;Avisar que ha documento novo no portal;;NAO;1;MEDIO;documento publicado;perfil da matriz de publicacao;1x ao dia 17h;e-mail nao sai - conferir na segunda;
-R02;Enviar guias do mes com prazo;;NAO;1;ALTO;guia publicada;FINANCEIRO do cliente;ate 5 dias do vencimento;cliente paga em atraso - multa;
-R03;Lembrete de vencimento a vencer;;NAO;2;MEDIO;D-2 do vencimento;FINANCEIRO do cliente;08h;lembrete duplicado irrita;
-R04;Solicitar documentos ao cliente;;NAO;2;MEDIO;falta documento da competencia;SOCIO do cliente;dia 5 do mes;pedir o que ja foi enviado queima confianca;
-R05;Cobrar pendencia nao atendida;;NAO;3;ALTO;solicitacao sem resposta ha X dias;SOCIO do cliente;semanal;cobranca indevida;
-R06;Avisar entrega de obrigacao cumprida;;NAO;2;BAIXO;tarefa concluida;SOCIO do cliente;no ato;;
-R07;Aviso interno de tarefa atrasada;;NAO;1;BAIXO;tarefa vencida;equipe do escritorio;08h diario;time nao ve o atraso;
-R08;Aviso de certidao a vencer;;NAO;3;BAIXO;D-30 da validade;SOCIO do cliente;mensal;certidao vence sem aviso;
-R09;Boas-vindas / primeiro acesso ao portal;;NAO;1;MEDIO;cliente cadastrado;SOCIO do cliente;no ato;cliente nunca ativa o acesso;
-R10;Resumo mensal ao cliente;;NAO;3;BAIXO;fechamento do mes;SOCIO do cliente;dia 10;;
+# RECURSO_DOMINIO  preencher: qual recurso da sua versao faz isso  [descobrir na tela]
+# ATIVA            NAO ate passar no teste com a empresa de teste
+# ONDA             1 = primeira semana | 2 = depois de 1 estavel | 3 = por ultimo
+# RISCO            BAIXO (interno) | MEDIO (cliente ve) | ALTO (cliente age errado)
+# AGREGA           SIM = um e-mail com tudo do dia | NAO = um por evento
+ID;FINALIDADE;RECURSO_DOMINIO;ATIVA;ONDA;RISCO;GATILHO;DESTINATARIO;JANELA;AGREGA;TETO_SEMANA;FALHA;RESPONSAVEL
+R07;Aviso interno de tarefa atrasada;;NAO;1;BAIXO;tarefa com prazo vencido e nao concluida;equipe do escritorio (interno);dias uteis 08h00;SIM;5;ninguem ve o atraso - conferir toda segunda;
+R09;Boas-vindas e primeiro acesso;;NAO;1;MEDIO;usuario do cliente cadastrado no portal;SOCIO do cliente;no ato do cadastro;NAO;1;cliente nunca ativa o acesso - ligar em 48h;
+R01;Aviso de documento novo no portal;;NAO;1;MEDIO;documento publicado no portal;perfil definido na matriz de publicacao;dias uteis 17h00;SIM;3;cliente nao sabe que tem documento - conferir na segunda;
+R02;Guias do mes disponiveis;;NAO;1;ALTO;guias da competencia publicadas e conferidas;FINANCEIRO do cliente;ate 5 dias antes do vencimento 09h00;SIM;1;cliente paga em atraso e a multa e do escritorio;
+R03;Lembrete de vencimento D-2;;NAO;2;MEDIO;guia publicada e nao baixada ate D-2;FINANCEIRO do cliente;D-2 08h00 dias uteis;SIM;1;cliente esquece de pagar;
+R04;Solicitacao mensal de documentos;;NAO;2;MEDIO;inicio da competencia;SOCIO do cliente;dia 5 as 09h00;SIM;1;fechamento atrasa por falta de documento;
+R06;Obrigacao cumprida;;NAO;2;BAIXO;tarefa de obrigacao concluida;SOCIO do cliente;dias uteis 17h00;SIM;1;cliente nao percebe o trabalho entregue;
+R08;Certidao a vencer;;NAO;3;BAIXO;30 dias antes da validade;SOCIO do cliente;dia 1 as 09h00;SIM;1;certidao vence sem aviso;
+R05;Cobranca de pendencia;;NAO;3;ALTO;solicitacao sem resposta ha 7 dias;SOCIO do cliente;tercas 10h00;SIM;1;cobranca indevida em quem ja enviou;
+R10;Resumo mensal;;NAO;3;BAIXO;fechamento da competencia;SOCIO do cliente;dia 10 as 09h00;SIM;1;;

@@ -23,6 +23,10 @@ Três consequências práticas:
 
 ---
 
+> **Os valores já vêm preenchidos** em `config/portal/rotinas.csv`, e os textos
+> das mensagens estão em [docs/20](20-textos-das-rotinas.md). Este documento é o
+> método; o docs/20 é o conteúdo.
+
 ## Catálogo por finalidade
 
 Preencha `config/portal/rotinas.csv`. As dez linhas cobrem o que um escritório
